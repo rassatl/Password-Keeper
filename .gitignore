@@ -11,9 +11,6 @@ dist/
 build/
 coverage/
 
-# Firebase local emulator data
-.firebase/
-
 # Logs
 npm-debug.log*
 yarn-debug.log*
