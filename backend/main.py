@@ -4,7 +4,7 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -35,6 +35,16 @@ class User(Base):
     prenom: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     pseudo: Mapped[str | None] = mapped_column(String(50), unique=True, index=True, nullable=True)
     password_hash: Mapped[str] = mapped_column("masterpassword", String(255))
+
+
+class PasswordEntry(Base):
+    __tablename__ = "identifiants"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    utilisateur_id: Mapped[int] = mapped_column(index=True)
+    service: Mapped[str] = mapped_column(String(100))
+    login_ou_email: Mapped[str] = mapped_column(String(255))
+    mdp: Mapped[str] = mapped_column(String(255))
 
 
 class Credentials(BaseModel):
@@ -147,3 +157,21 @@ def login(credentials: Credentials) -> UserResponse:
         if user is None or not verify_password(credentials.password, user.password_hash):
             raise HTTPException(status_code=401, detail="Adresse e-mail ou mot de passe incorrect.")
         return user_response(user)
+
+@app.get("/api/passwords")
+def get_passwords(user_id: int = Query(..., gt=0)) -> list[dict[str, str | int]]:
+    with Session(engine) as session:
+        entries = session.scalars(
+            select(PasswordEntry)
+            .where(PasswordEntry.utilisateur_id == user_id)
+            .order_by(PasswordEntry.service)
+        ).all()
+        return [
+            {
+                "id": entry.id,
+                "service": entry.service,
+                "login_ou_email": entry.login_ou_email,
+                "mdp": entry.mdp,
+            }
+            for entry in entries
+        ]

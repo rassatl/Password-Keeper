@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from "vue";
+import { getPasswords } from "../../passwordsService.js";
 
-defineProps({
+const props = defineProps({
   user: {
     type: Object,
     required: true
@@ -9,6 +10,9 @@ defineProps({
 });
 
 const emit = defineEmits(["logout"]);
+const passwords = ref([]);
+const passwordsLoading = ref(true);
+const passwordsError = ref("");
 const activeCategory = ref("all");
 const categories = [
   { id: "all", label: "All passwords", description: "Tous vos identifiants enregistrés." },
@@ -19,8 +23,24 @@ const categories = [
 const selectedCategory = computed(() => categories.find((category) => category.id === activeCategory.value));
 
 function selectCategory(categoryId) {
-  activeCategory.value = categoryId;
+    activeCategory.value = categoryId;
 }
+
+async function fetchPasswords() {
+  passwordsLoading.value = true;
+  passwordsError.value = "";
+  try {
+    const data = await getPasswords(props.user.id);
+    passwords.value = Array.isArray(data) ? data : [];
+  } catch (error) {
+    passwordsError.value = error.message || "Impossible de charger les mots de passe.";
+    console.error("Erreur lors de la récupération des mots de passe:", error);
+  } finally {
+    passwordsLoading.value = false;
+  }
+}
+
+fetchPasswords();
 </script>
 
 <template>
@@ -62,9 +82,34 @@ function selectCategory(categoryId) {
         </div>
       </header>
 
-      <section class="vault-empty-state" aria-live="polite">
+      <section v-if="activeCategory === 'all'" class="password-section" aria-live="polite">
         <p class="eyebrow">{{ selectedCategory.label }}</p>
-        <h2>{{ activeCategory === "all" ? "Votre coffre est prêt" : `Aucun élément dans ${selectedCategory.label}` }}</h2>
+        <div class="password-section-header">
+          <div>
+            <h2>Vos mots de passe</h2>
+            <p>{{ passwords.length }} identifiant{{ passwords.length > 1 ? "s" : "" }} enregistré{{ passwords.length > 1 ? "s" : "" }}</p>
+          </div>
+          <button type="button">Ajouter un identifiant</button>
+        </div>
+
+        <p v-if="passwordsLoading" class="password-feedback">Chargement des mots de passe...</p>
+        <p v-else-if="passwordsError" class="password-feedback error">{{ passwordsError }}</p>
+        <p v-else-if="passwords.length === 0" class="password-feedback">Aucun mot de passe enregistré.</p>
+        <div v-else class="password-list">
+          <article v-for="password in passwords" :key="password.id" class="password-card">
+            <div class="password-service-icon">{{ (password.service || password.name || "?").charAt(0).toUpperCase() }}</div>
+            <div class="password-card-details">
+              <strong>{{ password.service || password.name }}</strong>
+              <span>{{ password.login_ou_email || password.login || "Identifiant non renseigné" }}</span>
+            </div>
+            <code>{{ password.mdp || password.value }}</code>
+          </article>
+        </div>
+      </section>
+
+      <section v-else class="vault-empty-state" aria-live="polite">
+        <p class="eyebrow">{{ selectedCategory.label }}</p>
+        <h2>Aucun élément dans {{ selectedCategory.label }}</h2>
         <p>Les identifiants de cette catégorie apparaîtront ici.</p>
         <button type="button">Ajouter un identifiant</button>
       </section>
