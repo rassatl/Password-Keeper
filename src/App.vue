@@ -29,9 +29,23 @@ async function handleSubmit(action, successMessage, event) {
   status.value = { message: "Traitement en cours...", type: "" };
 
   try {
-    currentUser.value = await (action === "register"
-      ? registerUser(formData.get("email"), formData.get("pseudo"), formData.get("password"))
-      : loginUser(formData.get("pseudo"), formData.get("password")));
+    if (action === "register") {
+      const password = formData.get("password");
+      const passwordConfirmation = formData.get("passwordConfirmation");
+      if (password !== passwordConfirmation) {
+        throw new Error("Les mots de passe ne correspondent pas.");
+      }
+      await registerUser(
+        formData.get("nom"),
+        formData.get("prenom"),
+        formData.get("pseudo"),
+        formData.get("email"),
+        password
+      );
+      currentUser.value = null;
+    } else {
+      currentUser.value = await loginUser(formData.get("login"), formData.get("password"));
+    }
     status.value = { message: successMessage, type: "success" };
     form.reset();
   } catch (error) {
@@ -66,15 +80,18 @@ onMounted(checkDatabase);
     <section class="forms" aria-label="Authentification">
       <form @submit.prevent="handleSubmit('register', 'Compte créé avec succès.', $event)">
         <h2>Créer un compte</h2>
+        <label>Nom<input name="nom" type="text" autocomplete="family-name" maxlength="50" required /></label>
+        <label>Prénom<input name="prenom" type="text" autocomplete="given-name" maxlength="50" required /></label>
         <label>Pseudo<input name="pseudo" type="text" autocomplete="username" minlength="3" maxlength="50" required /></label>
         <label>Adresse e-mail<input name="email" type="email" autocomplete="email" required /></label>
         <label>Mot de passe<input name="password" type="password" autocomplete="new-password" minlength="6" required /></label>
+        <label>Vérifier le mot de passe<input name="passwordConfirmation" type="password" autocomplete="new-password" minlength="6" required /></label>
         <button type="submit" :disabled="loadingAction !== ''">S'inscrire</button>
       </form>
 
       <form @submit.prevent="handleSubmit('login', 'Connexion réussie.', $event)">
         <h2>Se connecter</h2>
-        <label>Pseudo<input name="pseudo" type="text" autocomplete="username" minlength="3" required /></label>
+        <label>Pseudo ou e-mail<input name="login" type="text" autocomplete="username" minlength="3" required /></label>
         <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required /></label>
         <button type="submit" :disabled="loadingAction !== ''">Se connecter</button>
       </form>

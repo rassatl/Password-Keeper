@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, String, create_engine, inspect, select, text
+from sqlalchemy import String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 load_dotenv()
@@ -29,36 +29,37 @@ class User(Base):
     __tablename__ = "utilisateurs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    initiales: Mapped[str] = mapped_column(String(10), index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    nom: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    prenom: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     pseudo: Mapped[str | None] = mapped_column(String(50), unique=True, index=True, nullable=True)
     password_hash: Mapped[str] = mapped_column("masterpassword", String(255))
 
 
 class Credentials(BaseModel):
-    pseudo: str = Field(min_length=3, max_length=50)
+    login: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=6, max_length=128)
 
 
-class RegisterCredentials(Credentials):
+class RegisterCredentials(BaseModel):
+    nom: str = Field(min_length=1, max_length=50)
+    prenom: str = Field(min_length=1, max_length=50)
+    pseudo: str = Field(min_length=3, max_length=50)
     email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=6, max_length=128)
 
 
 class UserResponse(BaseModel):
     id: int
     email: str
+    nom: str
+    prenom: str
     pseudo: str | None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    database_inspector = inspect(engine)
-    if not database_inspector.has_table("utilisateurs"):
-        Base.metadata.create_all(engine)
-    else:
-        with engine.begin() as connection:
-            columns = {column["name"] for column in database_inspector.get_columns("utilisateurs")}
-            if "pseudo" not in columns:
-                connection.execute(text("ALTER TABLE utilisateurs ADD COLUMN pseudo VARCHAR(50) UNIQUE"))
+    Base.metadata.create_all(engine)
     yield
     engine.dispose()
 
@@ -95,7 +96,13 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
 
 def user_response(user: User) -> UserResponse:
-    return UserResponse(id=user.id, email=user.email, pseudo=user.pseudo)
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        nom=user.nom,
+        prenom=user.prenom,
+        pseudo=user.pseudo,
+    )
 
 
 @app.get("/api/health")
@@ -107,14 +114,23 @@ def health_check() -> dict[str, str]:
 
 @app.post("/api/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(credentials: RegisterCredentials) -> UserResponse:
-    email = normalize_email(credentials.email)
+    nom = credentials.nom.strip()
+    prenom = credentials.prenom.strip()
     pseudo = credentials.pseudo.strip().lower()
+    email = normalize_email(credentials.email)
     with Session(engine) as session:
         if session.scalar(select(User).where(User.email == email)):
             raise HTTPException(status_code=409, detail="Un compte existe déjà avec cette adresse e-mail.")
         if session.scalar(select(User).where(User.pseudo == pseudo)):
             raise HTTPException(status_code=409, detail="Ce pseudo est déjà utilisé.")
-        user = User(email=email, pseudo=pseudo, password_hash=hash_password(credentials.password))
+        user = User(
+            initiales=f"{prenom[0]}{nom[0]}".upper(),
+            nom=nom,
+            prenom=prenom,
+            pseudo=pseudo,
+            email=email,
+            password_hash=hash_password(credentials.password),
+        )
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -123,7 +139,7 @@ def register(credentials: RegisterCredentials) -> UserResponse:
 
 @app.post("/api/auth/login", response_model=UserResponse)
 def login(credentials: Credentials) -> UserResponse:
-    identifier = credentials.pseudo.strip().lower()
+    identifier = credentials.login.strip().lower()
     with Session(engine) as session:
         user = session.scalar(select(User).where((User.pseudo == identifier) | (User.email == identifier)))
         if user is None or not verify_password(credentials.password, user.password_hash):

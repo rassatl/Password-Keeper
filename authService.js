@@ -1,14 +1,16 @@
-export async function registerUser(email, pseudo, password) {
+export async function registerUser(nom, prenom, pseudo, email, password) {
   return request("/api/auth/register", {
-    email: email.trim().toLowerCase(),
+    nom: nom.trim(),
+    prenom: prenom.trim(),
     pseudo: pseudo.trim().toLowerCase(),
+    email: email.trim().toLowerCase(),
     password
   });
 }
 
-export async function loginUser(pseudo, password) {
+export async function loginUser(login, password) {
   return request("/api/auth/login", {
-    pseudo: pseudo.trim().toLowerCase(),
+    login: login.trim().toLowerCase(),
     password
   });
 }
