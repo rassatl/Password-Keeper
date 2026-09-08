@@ -8,8 +8,26 @@
 * { box-sizing: border-box; }
 body { display: grid; min-height: 100vh; margin: 0; place-items: center; padding: 24px; }
 main { width: min(100%, 760px); padding: 36px; background: #fff; border: 1px solid #d7e0e7; border-radius: 12px; box-shadow: 0 16px 40px rgb(31 55 73 / 10%); }
-.user-indicator { position: fixed; top: 20px; right: 20px; z-index: 2; display: grid; gap: 2px; min-width: 190px; padding: 10px 14px; color: #fff; background: #0b6477; border-radius: 8px; box-shadow: 0 6px 18px rgb(31 55 73 / 18%); }
-.user-indicator span { overflow: hidden; color: #d8f3f0; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.vault-layout { display: flex; width: min(100%, 1180px); min-height: min(760px, calc(100vh - 48px)); overflow: hidden; background: #fff; border: 1px solid #d7e0e7; border-radius: 12px; box-shadow: 0 16px 40px rgb(31 55 73 / 10%); }
+.vault-sidebar { display: flex; width: 230px; flex: 0 0 230px; flex-direction: column; padding: 28px 16px; color: #e8f4f4; background: #12343b; }
+.sidebar-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; font-size: 0.95rem; }
+.brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 8px; color: #12343b; background: #8bd3c7; font-size: 0.75rem; font-weight: 900; }
+.sidebar-label { margin: 0 12px 10px; color: #8bb2b2; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.category-link, .sidebar-logout { width: 100%; margin: 2px 0; padding: 11px 12px; border: 0; border-radius: 6px; color: #c6dedd; background: transparent; font-size: 0.9rem; text-align: left; }
+.category-link:hover, .category-link.active { color: #12343b; background: #8bd3c7; }
+.sidebar-logout { margin-top: auto; color: #c6dedd; border: 1px solid #3a6267; }
+.sidebar-logout:hover { color: #fff; background: #234b52; }
+.vault-page { width: auto; flex: 1; padding: 40px; background: #fff; }
+.vault-header { display: flex; justify-content: space-between; gap: 32px; align-items: flex-start; }
+.eyebrow { margin: 0 0 8px; color: #0b6477; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.profile-block { display: flex; align-items: center; gap: 10px; max-width: 360px; padding: 10px; border: 1px solid #d7e0e7; border-radius: 8px; }
+.profile-block div { display: grid; gap: 2px; min-width: 0; }
+.profile-block div span { overflow: hidden; color: #52606d; font-size: 0.8rem; text-overflow: ellipsis; white-space: nowrap; }
+.avatar { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border-radius: 50%; color: #fff; background: #0b6477; font-weight: 800; }
+.secondary-button { margin: 0 0 0 8px; padding: 8px 10px; color: #0b6477; background: #e8f4f4; font-size: 0.8rem; white-space: nowrap; }
+.vault-empty-state { margin-top: 34px; padding: 40px; border: 1px dashed #aebbc5; border-radius: 8px; text-align: center; }
+.vault-empty-state h2 { margin: 0 0 8px; color: #17202a; }
+.vault-empty-state p:not(.eyebrow) { color: #52606d; }
 .database-indicator { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 12px; border: 1px solid #d7e0e7; border-radius: 999px; background: #fff; box-shadow: 0 6px 18px rgb(31 55 73 / 12%); font-size: 0.85rem; font-weight: 700; }
 .indicator-dot { width: 9px; height: 9px; border-radius: 50%; background: #9aa6b2; }
 .database-indicator.online { color: #16734b; }
@@ -32,4 +50,4 @@ button:disabled { cursor: wait; opacity: 0.65; }
 .status { min-height: 1.5em; margin: 24px 0 0; font-weight: 600; }
 .success { color: #16734b; }
 .error { color: #b42318; }
-@media (max-width: 620px) { body { padding-top: 100px; } main { padding: 24px; } .forms { grid-template-columns: 1fr; } .database-indicator { top: 12px; right: 12px; } .user-indicator { top: 52px; right: 12px; left: 12px; min-width: 0; } }
+@media (max-width: 620px) { body { padding-top: 80px; } main { padding: 24px; } .forms { grid-template-columns: 1fr; } .database-indicator { top: 12px; right: 12px; } .vault-layout { display: block; min-height: auto; } .vault-sidebar { width: 100%; padding: 18px 14px; } .sidebar-brand { margin-bottom: 20px; } .vault-sidebar nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; } .sidebar-logout { margin-top: 18px; } .vault-header { display: grid; gap: 20px; } .profile-block { max-width: 100%; flex-wrap: wrap; } .secondary-button { margin-left: auto; } }

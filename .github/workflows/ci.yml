@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev, dev_cdc_serigne]
+  pull_request:
+    branches: [main, dev, dev_cdc_serigne]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install Python dependencies
+        run: python -m pip install -r backend/requirements.txt
+
+      - name: Run unit tests
+        run: python -m pytest backend/tests -q
+
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build Vue application
+        run: npm run build
