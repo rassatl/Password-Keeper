@@ -16,6 +16,10 @@ async function request(path, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem("password-keeper-current-user");
+      window.dispatchEvent(new CustomEvent("auth-expired"));
+    }
     const detail = Array.isArray(data.detail)
       ? data.detail.map((error) => error.msg || "Erreur de validation").join(" ")
       : data.detail;

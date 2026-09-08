@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { clearStoredUser, getStoredUser, loginUser, logoutUser, registerUser } from "../authService.js";
 import VaultPage from "./components/VaultPage.vue";
 
@@ -61,7 +61,21 @@ async function handleSubmit(action, successMessage, event) {
   }
 }
 
-onMounted(checkDatabase);
+function handleSessionExpired() {
+  currentUser.value = null;
+  clearStoredUser();
+  status.value = { message: "Votre session a expiré. Veuillez vous reconnecter.", type: "error" };
+  isRegistering.value = false;
+}
+
+onMounted(() => {
+  checkDatabase();
+  window.addEventListener("auth-expired", handleSessionExpired);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("auth-expired", handleSessionExpired);
+});
 
 async function logout() {
   try {

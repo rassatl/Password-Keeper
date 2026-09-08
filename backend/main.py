@@ -116,7 +116,7 @@ app.add_middleware(
 )
 
 session_scheme = HTTPBearer(auto_error=False)
-session_duration = timedelta(hours=12)
+session_duration = timedelta(minutes=30)
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()

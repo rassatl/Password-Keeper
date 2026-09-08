@@ -33,6 +33,11 @@ export function clearStoredUser() {
   localStorage.removeItem(currentUserKey);
 }
 
+export function notifySessionExpired() {
+  clearStoredUser();
+  window.dispatchEvent(new CustomEvent("auth-expired"));
+}
+
 export async function logoutUser() {
   await request("/api/auth/logout", undefined);
   clearStoredUser();
@@ -62,6 +67,9 @@ async function request(path, body, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && getStoredUser()?.session_token) {
+      notifySessionExpired();
+    }
     throw new Error(data.detail || "Le serveur est indisponible.");
   }
 
