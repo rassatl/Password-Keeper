@@ -13,6 +13,7 @@ const emit = defineEmits(["logout"]);
 const passwords = ref([]);
 const passwordsLoading = ref(true);
 const passwordsError = ref("");
+const showAddPassword = ref(false);
 const activeCategory = ref("all");
 const categories = [
   { id: "all", label: "All passwords", description: "Tous vos identifiants enregistrés." },
@@ -24,6 +25,14 @@ const selectedCategory = computed(() => categories.find((category) => category.i
 
 function selectCategory(categoryId) {
     activeCategory.value = categoryId;
+}
+
+function openAddPassword() {
+  showAddPassword.value = true;
+}
+
+function closeAddPassword() {
+  showAddPassword.value = false;
 }
 
 async function fetchPasswords() {
@@ -89,7 +98,7 @@ fetchPasswords();
             <h2>Vos mots de passe</h2>
             <p>{{ passwords.length }} identifiant{{ passwords.length > 1 ? "s" : "" }} enregistré{{ passwords.length > 1 ? "s" : "" }}</p>
           </div>
-          <button type="button">Ajouter un identifiant</button>
+          <button type="button" @click="openAddPassword">Ajouter un identifiant</button>
         </div>
 
         <p v-if="passwordsLoading" class="password-feedback">Chargement des mots de passe...</p>
@@ -111,8 +120,37 @@ fetchPasswords();
         <p class="eyebrow">{{ selectedCategory.label }}</p>
         <h2>Aucun élément dans {{ selectedCategory.label }}</h2>
         <p>Les identifiants de cette catégorie apparaîtront ici.</p>
-        <button type="button">Ajouter un identifiant</button>
+        <button type="button" @click="openAddPassword">Ajouter un identifiant</button>
       </section>
     </main>
+
+    <div v-if="showAddPassword" class="modal-backdrop" @click.self="closeAddPassword">
+      <section class="password-modal" role="dialog" aria-modal="true" aria-labelledby="add-password-title">
+        <header class="modal-header">
+          <div>
+            <p class="eyebrow">Nouveau secret</p>
+            <h2 id="add-password-title">Ajouter un identifiant</h2>
+          </div>
+          <button class="modal-close" type="button" aria-label="Fermer" @click="closeAddPassword">&times;</button>
+        </header>
+
+        <form class="password-form" @submit.prevent="closeAddPassword">
+          <label>Service<input type="text" placeholder="Ex. Netflix, GitHub..." required /></label>
+          <label>Login ou e-mail<input type="text" placeholder="nom@exemple.com" required /></label>
+          <label>Mot de passe<input type="password" placeholder="Votre mot de passe" required /></label>
+          <label>Catégorie
+            <select>
+              <option value="personal">Personal</option>
+              <option value="work">Work</option>
+            </select>
+          </label>
+          <label class="favorite-option"><input type="checkbox" /> Ajouter aux favoris</label>
+          <footer class="modal-actions">
+            <button class="modal-cancel" type="button" @click="closeAddPassword">Annuler</button>
+            <button type="submit">Enregistrer</button>
+          </footer>
+        </form>
+      </section>
+    </div>
   </div>
 </template>

@@ -55,6 +55,21 @@ main { width: 100%; min-height: 100vh; padding: 56px clamp(24px, 7vw, 120px); ba
 .password-card code { padding: 5px 8px; border-radius: 4px; color: #52606d; background: #eef3f7; font-size: 0.8rem; }
 .password-feedback { margin-top: 26px; color: #52606d; }
 .password-feedback.error { color: #b42318; }
+.modal-backdrop { position: fixed; z-index: 10; inset: 0; display: grid; place-items: center; padding: 24px; background: rgb(18 52 59 / 48%); }
+.password-modal { width: min(100%, 520px); padding: 28px; border: 1px solid #d7e0e7; border-radius: 12px; background: #fff; box-shadow: 0 24px 70px rgb(18 52 59 / 28%); }
+.modal-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 24px; }
+.modal-header h2 { margin: 0; color: #12343b; }
+.modal-close { width: 32px; height: 32px; margin: 0; padding: 0; color: #52606d; background: #eef3f7; font-size: 1.35rem; line-height: 1; }
+.modal-close:hover { color: #12343b; background: #d8efeb; }
+.password-form { gap: 14px; padding: 0; border: 0; }
+.password-form input, .password-form select { padding: 10px 12px; border: 1px solid #aebbc5; border-radius: 6px; background: #fff; font: inherit; }
+.password-form select { width: 100%; margin-top: 4px; }
+.favorite-option { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.favorite-option input { width: auto; margin: 0; accent-color: #0b6477; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.modal-actions button { margin: 0; }
+.modal-cancel { color: #0b6477; background: #e8f4f4; }
+.modal-cancel:hover { background: #d8efeb; }
 .database-indicator { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 12px; border: 1px solid #d7e0e7; border-radius: 999px; background: #fff; box-shadow: 0 6px 18px rgb(31 55 73 / 12%); font-size: 0.85rem; font-weight: 700; }
 .indicator-dot { width: 9px; height: 9px; border-radius: 50%; background: #9aa6b2; }
 .database-indicator.online { color: #16734b; }
