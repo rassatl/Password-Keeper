@@ -5,6 +5,7 @@ import VaultPage from "./components/VaultPage.vue";
 
 const status = ref({ message: "", type: "" });
 const loadingAction = ref("");
+const isRegistering = ref(false);
 const currentUser = ref(getStoredUser());
 const databaseStatus = ref({ label: "Vérification...", type: "checking" });
 
@@ -67,6 +68,11 @@ function logout() {
   clearStoredUser();
   status.value = { message: "", type: "" };
 }
+
+function switchAuthMode(registering) {
+  isRegistering.value = registering;
+  status.value = { message: "", type: "" };
+}
 </script>
 
 <template>
@@ -78,30 +84,48 @@ function logout() {
 
   <VaultPage v-if="currentUser" :user="currentUser" @logout="logout" />
 
-  <main v-else>
-    <h1>Password Keeper</h1>
-    <p class="intro">Créez un compte ou connectez-vous pour accéder à votre coffre-fort.</p>
+  <main v-else class="auth-page">
+    <div class="auth-shell">
+      <section class="auth-brand" aria-label="Password Keeper">
+        <div class="brand-mark large">PK</div>
+        <p class="brand-kicker">Password Keeper</p>
+        <h1>Vos accès, enfin bien rangés.</h1>
+        <p class="brand-copy">Un espace calme pour retrouver vos identifiants importants, au bon endroit.</p>
+        <div class="brand-line"></div>
+        <span class="brand-caption">Private by design</span>
+      </section>
 
-    <section class="forms" aria-label="Authentification">
-      <form @submit.prevent="handleSubmit('register', 'Compte créé avec succès.', $event)">
-        <h2>Créer un compte</h2>
-        <label>Nom<input name="nom" type="text" autocomplete="family-name" maxlength="50" required /></label>
-        <label>Prénom<input name="prenom" type="text" autocomplete="given-name" maxlength="50" required /></label>
-        <label>Pseudo<input name="pseudo" type="text" autocomplete="username" minlength="3" maxlength="50" required /></label>
-        <label>Adresse e-mail<input name="email" type="email" autocomplete="email" required /></label>
-        <label>Mot de passe<input name="password" type="password" autocomplete="new-password" minlength="6" required /></label>
-        <label>Vérifier le mot de passe<input name="passwordConfirmation" type="password" autocomplete="new-password" minlength="6" required /></label>
-        <button type="submit" :disabled="loadingAction !== ''">S'inscrire</button>
-      </form>
+      <section class="auth-content" aria-label="Authentification">
+        <div class="auth-heading">
+          <p class="eyebrow">Espace sécurisé</p>
+          <h2>Bienvenue</h2>
+          <p class="intro">{{ isRegistering ? "Quelques informations pour commencer." : "Retrouvez votre coffre-fort." }}</p>
+        </div>
 
-      <form @submit.prevent="handleSubmit('login', 'Connexion réussie.', $event)">
-        <h2>Se connecter</h2>
-        <label>Pseudo ou e-mail<input name="login" type="text" autocomplete="username" minlength="3" required /></label>
-        <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required /></label>
-        <button type="submit" :disabled="loadingAction !== ''">Se connecter</button>
-      </form>
-    </section>
+        <div class="forms single-form">
+          <form v-if="isRegistering" @submit.prevent="handleSubmit('register', 'Compte créé avec succès.', $event)">
+            <h3>Créer un compte</h3>
+            <label>Nom<input name="nom" type="text" autocomplete="family-name" maxlength="50" required /></label>
+            <label>Prénom<input name="prenom" type="text" autocomplete="given-name" maxlength="50" required /></label>
+            <label>Pseudo<input name="pseudo" type="text" autocomplete="username" minlength="3" maxlength="50" required /></label>
+            <label>Adresse e-mail<input name="email" type="email" autocomplete="email" required /></label>
+            <label>Mot de passe<input name="password" type="password" autocomplete="new-password" minlength="12" required /></label>
+            <label>Vérifier le mot de passe<input name="passwordConfirmation" type="password" autocomplete="new-password" minlength="12" required /></label>
+            <button type="submit" :disabled="loadingAction !== ''">S'inscrire</button>
+            <button class="auth-switch" type="button" @click="switchAuthMode(false)">Déjà un compte ? Se connecter</button>
+          </form>
 
-    <p class="status" :class="status.type" role="status" aria-live="polite">{{ status.message }}</p>
+          <form v-else @submit.prevent="handleSubmit('login', 'Connexion réussie.', $event)">
+            <h3>Se connecter</h3>
+            <label>Pseudo ou e-mail<input name="login" type="text" autocomplete="username" minlength="3" required /></label>
+            <label>Mot de passe<input name="password" type="password" autocomplete="current-password" minlength="12" required /></label>
+            <button type="submit" :disabled="loadingAction !== ''">Se connecter</button>
+            <button class="auth-switch" type="button" @click="switchAuthMode(true)">Pas de compte ? Créer un compte</button>
+          </form>
+        </div>
+
+        <p class="status" :class="status.type" role="status" aria-live="polite">{{ status.message }}</p>
+      </section>
+    </div>
   </main>
 </template>
