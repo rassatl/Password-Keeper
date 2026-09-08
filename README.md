@@ -30,6 +30,10 @@ uvicorn backend.main:app --reload
 
 L'API est disponible sur `http://localhost:8000` et sa documentation sur `http://localhost:8000/docs`.
 
+Après connexion, l'API crée une session Bearer. Les routes du coffre utilisent cette session pour identifier l'utilisateur : le frontend n'envoie jamais de `user_id` pour accéder aux mots de passe d'un compte.
+
+Les mots de passe des services sont chiffrés avec une clé de coffre propre à chaque utilisateur. Cette clé est elle-même protégée par `VAULT_ENCRYPTION_KEY`.
+
 Pour lancer les tests backend :
 
 ```bash

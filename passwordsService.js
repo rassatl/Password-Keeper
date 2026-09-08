@@ -6,6 +6,7 @@ async function request(path, options = {}) {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...(getSessionToken() ? { Authorization: `Bearer ${getSessionToken()}` } : {}),
         ...(options.headers || {})
       }
     });
@@ -24,8 +25,16 @@ async function request(path, options = {}) {
   return data;
 }
 
-export async function getPasswords(userId) {
-  return request(`/api/passwords?user_id=${encodeURIComponent(userId)}`, { method: "GET" });
+function getSessionToken() {
+  try {
+    return JSON.parse(localStorage.getItem("password-keeper-current-user") || "null")?.session_token;
+  } catch {
+    return null;
+  }
+}
+
+export async function getPasswords() {
+  return request("/api/passwords", { method: "GET" });
 }
 
 export async function addPasswordEntry(entry) {

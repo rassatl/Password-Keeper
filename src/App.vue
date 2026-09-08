@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { clearStoredUser, getStoredUser, loginUser, registerUser } from "../authService.js";
+import { clearStoredUser, getStoredUser, loginUser, logoutUser, registerUser } from "../authService.js";
 import VaultPage from "./components/VaultPage.vue";
 
 const status = ref({ message: "", type: "" });
@@ -63,9 +63,13 @@ async function handleSubmit(action, successMessage, event) {
 
 onMounted(checkDatabase);
 
-function logout() {
+async function logout() {
+  try {
+    await logoutUser();
+  } catch {
+    clearStoredUser();
+  }
   currentUser.value = null;
-  clearStoredUser();
   status.value = { message: "", type: "" };
 }
 

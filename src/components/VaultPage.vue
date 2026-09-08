@@ -23,7 +23,7 @@ async function fetchPasswords() {
   passwordsLoading.value = true;
   passwordsError.value = "";
   try {
-    const data = await getPasswords(props.user.id);
+    const data = await getPasswords();
     passwords.value = Array.isArray(data) ? data : [];
   } catch (error) {
     passwordsError.value = error.message || "Impossible de charger les mots de passe.";
@@ -77,10 +77,8 @@ async function addPassword(event) {
 
   try {
     await addPasswordEntry({
-      utilisateur_id: props.user.id,
       service: formData.get("password-form-service"),
       service_categorie: formData.get("password-form-category"),
-      login_ou_email: props.user.email,
       mdp: formData.get("password-form-secret")
     });
     await fetchPasswords();
@@ -153,7 +151,7 @@ fetchCategories();
             <div class="password-service-icon">{{ (password.service || password.name || "?").charAt(0).toUpperCase() }}</div>
             <div class="password-card-details">
               <strong>{{ password.service || password.name }}</strong>
-              <span>{{ password.login_ou_email || password.login || "Identifiant non renseigné" }}</span>
+              <span>{{ password.login || "Identifiant non renseigné" }}</span>
             </div>
             <code>{{ password.mdp || password.value }}</code>
           </article>
