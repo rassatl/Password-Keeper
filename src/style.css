@@ -8,6 +8,16 @@
 * { box-sizing: border-box; }
 body { display: grid; min-height: 100vh; margin: 0; place-items: center; padding: 24px; }
 main { width: min(100%, 760px); padding: 36px; background: #fff; border: 1px solid #d7e0e7; border-radius: 12px; box-shadow: 0 16px 40px rgb(31 55 73 / 10%); }
+.user-indicator { position: fixed; top: 20px; right: 20px; z-index: 2; display: grid; gap: 2px; min-width: 190px; padding: 10px 14px; color: #fff; background: #0b6477; border-radius: 8px; box-shadow: 0 6px 18px rgb(31 55 73 / 18%); }
+.user-indicator span { overflow: hidden; color: #d8f3f0; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.database-indicator { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 12px; border: 1px solid #d7e0e7; border-radius: 999px; background: #fff; box-shadow: 0 6px 18px rgb(31 55 73 / 12%); font-size: 0.85rem; font-weight: 700; }
+.indicator-dot { width: 9px; height: 9px; border-radius: 50%; background: #9aa6b2; }
+.database-indicator.online { color: #16734b; }
+.database-indicator.online .indicator-dot { background: #20a464; }
+.database-indicator.offline { color: #b42318; }
+.database-indicator.offline .indicator-dot { background: #d64545; }
+.refresh-button { width: 24px; height: 24px; margin: 0; padding: 0; border-radius: 50%; background: transparent; color: #52606d; font-size: 1.1rem; line-height: 1; }
+.refresh-button:hover { background: #eef3f7; color: #0b6477; }
 h1 { margin: 0 0 8px; color: #0b6477; }
 .intro { margin-top: 0; color: #52606d; }
 .forms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 28px; }
@@ -22,4 +32,4 @@ button:disabled { cursor: wait; opacity: 0.65; }
 .status { min-height: 1.5em; margin: 24px 0 0; font-weight: 600; }
 .success { color: #16734b; }
 .error { color: #b42318; }
-@media (max-width: 620px) { main { padding: 24px; } .forms { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { body { padding-top: 100px; } main { padding: 24px; } .forms { grid-template-columns: 1fr; } .database-indicator { top: 12px; right: 12px; } .user-indicator { top: 52px; right: 12px; left: 12px; min-width: 0; } }

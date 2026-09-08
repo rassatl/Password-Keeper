@@ -1,29 +1,35 @@
-const usersKey = "password-keeper-users";
-
-function getUsers() {
-  return JSON.parse(localStorage.getItem(usersKey) || "{}");
+export async function registerUser(email, pseudo, password) {
+  return request("/api/auth/register", {
+    email: email.trim().toLowerCase(),
+    pseudo: pseudo.trim().toLowerCase(),
+    password
+  });
 }
 
-export async function registerUser(email, password) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const users = getUsers();
-
-  if (users[normalizedEmail]) {
-    throw new Error("Un compte existe déjà avec cette adresse e-mail.");
-  }
-
-  users[normalizedEmail] = password;
-  localStorage.setItem(usersKey, JSON.stringify(users));
-  return { email: normalizedEmail };
+export async function loginUser(pseudo, password) {
+  return request("/api/auth/login", {
+    pseudo: pseudo.trim().toLowerCase(),
+    password
+  });
 }
 
-export async function loginUser(email, password) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const users = getUsers();
-
-  if (users[normalizedEmail] !== password) {
-    throw new Error("Adresse e-mail ou mot de passe incorrect.");
+async function request(path, body) {
+  const apiBaseUrl = import.meta.env.DEV ? "" : (import.meta.env.VITE_API_URL || "");
+  let response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  } catch {
+    throw new Error("Impossible de joindre l'API. Lancez FastAPI sur le port 8000.");
   }
 
-  return { email: normalizedEmail };
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || "Le serveur est indisponible.");
+  }
+
+  return data;
 }
