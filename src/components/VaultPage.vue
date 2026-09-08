@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { getPasswords } from "../../passwordsService.js";
+import { getPasswords, getCategories, addPasswordEntry } from "../../passwordsService.js";
 
 const props = defineProps({
   user: {
@@ -10,30 +10,14 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["logout"]);
+
+// Passwords et categories state/état
 const passwords = ref([]);
 const passwordsLoading = ref(true);
 const passwordsError = ref("");
 const showAddPassword = ref(false);
-const activeCategory = ref("all");
-const categories = [
-  { id: "all", label: "All passwords", description: "Tous vos identifiants enregistrés." },
-  { id: "favorites", label: "Favorites", description: "Vos identifiants favoris." },
-  { id: "work", label: "Work", description: "Vos accès professionnels." },
-  { id: "personal", label: "Personal", description: "Vos accès personnels." }
-];
-const selectedCategory = computed(() => categories.find((category) => category.id === activeCategory.value));
-
-function selectCategory(categoryId) {
-    activeCategory.value = categoryId;
-}
-
-function openAddPassword() {
-  showAddPassword.value = true;
-}
-
-function closeAddPassword() {
-  showAddPassword.value = false;
-}
+const addPasswordError = ref("");
+const addPasswordLoading = ref(false);
 
 async function fetchPasswords() {
   passwordsLoading.value = true;
@@ -49,7 +33,67 @@ async function fetchPasswords() {
   }
 }
 
+//Catégories
+const password_categories = ref([]);
+
+async function fetchCategories() {
+  try {
+    const data = await getCategories();
+    password_categories.value = Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Erreur lors de la récupération des catégories:", error);
+  }
+}
+
+//Barre latérale
+const activeCategory = ref("all");
+const categories = [
+  { id: "all", label: "All passwords", description: "Tous vos identifiants enregistrés." },
+  { id: "favorites", label: "Favorites", description: "Vos identifiants favoris." },
+  { id: "work", label: "Work", description: "Vos accès professionnels." },
+  { id: "personal", label: "Personal", description: "Vos accès personnels." }
+];
+const selectedCategory = computed(() => categories.find((category) => category.id === activeCategory.value));
+
+function selectCategory(categoryId) {
+    activeCategory.value = categoryId;
+}
+
+// Ouverture et fermeture du modal pour ajouter un mot de passe
+function openAddPassword() {
+  addPasswordError.value = "";
+  showAddPassword.value = true;
+}
+
+function closeAddPassword() {
+  showAddPassword.value = false;
+}
+
+// Ajout du mot de passe dans le coffre-fort
+async function addPassword(event) {
+  const formData = new FormData(event.currentTarget);
+  addPasswordLoading.value = true;
+  addPasswordError.value = "";
+
+  try {
+    await addPasswordEntry({
+      utilisateur_id: props.user.id,
+      service: formData.get("password-form-service"),
+      service_categorie: formData.get("password-form-category"),
+      login_ou_email: props.user.email,
+      mdp: formData.get("password-form-secret")
+    });
+    await fetchPasswords();
+    closeAddPassword();
+  } catch (error) {
+    addPasswordError.value = error.message || "Impossible d'ajouter cet identifiant.";
+  } finally {
+    addPasswordLoading.value = false;
+  }
+}
+
 fetchPasswords();
+fetchCategories();
 </script>
 
 <template>
@@ -134,20 +178,22 @@ fetchPasswords();
           <button class="modal-close" type="button" aria-label="Fermer" @click="closeAddPassword">&times;</button>
         </header>
 
-        <form class="password-form" @submit.prevent="closeAddPassword">
-          <label>Service<input type="text" placeholder="Ex. Netflix, GitHub..." required /></label>
-          <label>Login ou e-mail<input type="text" placeholder="nom@exemple.com" required /></label>
-          <label>Mot de passe<input type="password" placeholder="Votre mot de passe" required /></label>
+        <form class="password-form" autocomplete="off" @submit.prevent="addPassword">
+          <label>Service<input name="password-form-service" type="text" autocomplete="off" placeholder="Ex. Netflix, GitHub..." required /></label>
+          <label>Mot de passe<input name="password-form-secret" type="password" autocomplete="new-password" placeholder="Votre mot de passe" required /></label>
           <label>Catégorie
-            <select>
-              <option value="personal">Personal</option>
-              <option value="work">Work</option>
+            <select name="password-form-category" required>
+                <option value="">Sélectionnez une catégorie</option>
+                <option v-for="category in password_categories" :key="category.id" :value="category.label">
+                  {{ category.label }}
+                </option>
             </select>
           </label>
           <label class="favorite-option"><input type="checkbox" /> Ajouter aux favoris</label>
           <footer class="modal-actions">
             <button class="modal-cancel" type="button" @click="closeAddPassword">Annuler</button>
-            <button type="submit">Enregistrer</button>
+            <p v-if="addPasswordError" class="password-feedback error">{{ addPasswordError }}</p>
+            <button type="submit" :disabled="addPasswordLoading">{{ addPasswordLoading ? "Enregistrement..." : "Enregistrer" }}</button>
           </footer>
         </form>
       </section>

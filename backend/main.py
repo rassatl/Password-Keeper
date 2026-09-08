@@ -20,10 +20,8 @@ DATABASE_URL = os.getenv(
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
-
 class Base(DeclarativeBase):
     pass
-
 
 class User(Base):
     __tablename__ = "utilisateurs"
@@ -37,21 +35,25 @@ class User(Base):
     salt: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column("masterpassword", String(255))
 
-
 class PasswordEntry(Base):
     __tablename__ = "identifiants"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     utilisateur_id: Mapped[int] = mapped_column(index=True)
     service: Mapped[str] = mapped_column(String(100))
+    service_categorie: Mapped[str] = mapped_column(String(100))
     login_ou_email: Mapped[str] = mapped_column(String(255))
     mdp: Mapped[str] = mapped_column(String(255))
 
+class PasswordCategory(Base):
+    __tablename__ = "password_categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nom: Mapped[str] = mapped_column(String(50), unique=True)
 
 class Credentials(BaseModel):
     login: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=6, max_length=128)
-
 
 class RegisterCredentials(BaseModel):
     nom: str = Field(min_length=1, max_length=50)
@@ -60,6 +62,22 @@ class RegisterCredentials(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=6, max_length=128)
 
+class PasswordCategoryResponse(BaseModel):
+    id: int
+    label: str = Field(min_length=1, max_length=100)
+
+class PasswordEntryResponse(BaseModel):
+    id: int
+    service: str
+    login_ou_email: str
+    mdp: str
+
+class PasswordEntryCreate(BaseModel):
+    utilisateur_id: int = Field(gt=0)
+    service: str = Field(min_length=1, max_length=100)
+    service_categorie: str = Field(min_length=1, max_length=100)
+    login_ou_email: str = Field(min_length=1, max_length=255)
+    mdp: str = Field(min_length=1)
 
 class UserResponse(BaseModel):
     id: int
@@ -76,7 +94,6 @@ async def lifespan(app: FastAPI):
     yield
     engine.dispose()
 
-
 app = FastAPI(title="Password Keeper API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
@@ -86,16 +103,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 def normalize_email(email: str) -> str:
     return email.strip().lower()
-
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000)
     return f"{salt.hex()}${digest.hex()}"
-
 
 def verify_password(password: str, stored_hash: str) -> bool:
     try:
@@ -106,7 +120,6 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000)
     return hmac.compare_digest(digest.hex(), digest_hex)
-
 
 def user_response(user: User) -> UserResponse:
     return UserResponse(
@@ -119,13 +132,11 @@ def user_response(user: User) -> UserResponse:
         pseudo=user.pseudo,
     )
 
-
 @app.get("/api/health")
 def health_check() -> dict[str, str]:
     with Session(engine) as session:
         session.execute(select(1))
     return {"status": "ok", "database": "connected"}
-
 
 @app.post("/api/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(credentials: RegisterCredentials) -> UserResponse:
@@ -152,7 +163,6 @@ def register(credentials: RegisterCredentials) -> UserResponse:
         session.refresh(user)
         return user_response(user)
 
-
 @app.post("/api/auth/login", response_model=UserResponse)
 def login(credentials: Credentials) -> UserResponse:
     identifier = credentials.login.strip().lower()
@@ -163,7 +173,7 @@ def login(credentials: Credentials) -> UserResponse:
         return user_response(user)
 
 @app.get("/api/passwords")
-def get_passwords(user_id: int = Query(..., gt=0)) -> list[dict[str, str | int]]:
+def get_passwords(user_id: int = Query(..., gt=0)) -> list[PasswordEntryResponse]:
     with Session(engine) as session:
         entries = session.scalars(
             select(PasswordEntry)
@@ -171,11 +181,34 @@ def get_passwords(user_id: int = Query(..., gt=0)) -> list[dict[str, str | int]]
             .order_by(PasswordEntry.service)
         ).all()
         return [
-            {
-                "id": entry.id,
-                "service": entry.service,
-                "login_ou_email": entry.login_ou_email,
-                "mdp": entry.mdp,
-            }
+            PasswordEntryResponse(
+                id=entry.id,
+                service=entry.service,
+                login_ou_email=entry.login_ou_email,
+                mdp=entry.mdp,
+            )
             for entry in entries
         ]
+
+@app.get("/api/password-categories", response_model=list[PasswordCategoryResponse])
+def get_password_categories() -> list[PasswordCategoryResponse]:
+    with Session(engine) as session:
+        categories = session.scalars(select(PasswordCategory).order_by(PasswordCategory.nom)).all()
+        return [
+            PasswordCategoryResponse(id=category.id, label=category.nom)
+            for category in categories
+        ]
+    
+@app.post("/api/passwords", response_model=PasswordEntryResponse, status_code=status.HTTP_201_CREATED)
+def add_password_entry(entry: PasswordEntryCreate) -> PasswordEntryResponse:
+    with Session(engine) as session:
+        password_entry = PasswordEntry(**entry.model_dump())
+        session.add(password_entry)
+        session.commit()
+        session.refresh(password_entry)
+        return PasswordEntryResponse(
+            id=password_entry.id,
+            service=password_entry.service,
+            login_ou_email=password_entry.login_ou_email,
+            mdp=password_entry.mdp,
+        )

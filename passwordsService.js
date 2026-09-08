@@ -15,7 +15,10 @@ async function request(path, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || "Le serveur est indisponible.");
+    const detail = Array.isArray(data.detail)
+      ? data.detail.map((error) => error.msg || "Erreur de validation").join(" ")
+      : data.detail;
+    throw new Error(detail || "Le serveur est indisponible.");
   }
 
   return data;
@@ -23,4 +26,15 @@ async function request(path, options = {}) {
 
 export async function getPasswords(userId) {
   return request(`/api/passwords?user_id=${encodeURIComponent(userId)}`, { method: "GET" });
+}
+
+export async function addPasswordEntry(entry) {
+  return request("/api/passwords", {
+    method: "POST",
+    body: JSON.stringify(entry)
+  });
+}
+
+export async function getCategories() {
+  return request("/api/password-categories", { method: "GET" });
 }
