@@ -1,10 +1,11 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { loginUser, registerUser } from "../authService.js";
+import { clearStoredUser, getStoredUser, loginUser, registerUser } from "../authService.js";
+import VaultPage from "./components/VaultPage.vue";
 
 const status = ref({ message: "", type: "" });
 const loadingAction = ref("");
-const currentUser = ref(null);
+const currentUser = ref(getStoredUser());
 const databaseStatus = ref({ label: "Vérification...", type: "checking" });
 
 async function checkDatabase() {
@@ -43,6 +44,7 @@ async function handleSubmit(action, successMessage, event) {
         password
       );
       currentUser.value = null;
+      clearStoredUser();
     } else {
       currentUser.value = await loginUser(formData.get("login"), formData.get("password"));
     }
@@ -59,21 +61,24 @@ async function handleSubmit(action, successMessage, event) {
 }
 
 onMounted(checkDatabase);
+
+function logout() {
+  currentUser.value = null;
+  clearStoredUser();
+  status.value = { message: "", type: "" };
+}
 </script>
 
 <template>
-  <aside v-if="currentUser" class="user-indicator" aria-live="polite">
-    <strong>{{ currentUser.pseudo || "Utilisateur" }}</strong>
-    <span>{{ currentUser.email }}</span>
-  </aside>
-
   <aside class="database-indicator" :class="databaseStatus.type" aria-live="polite">
     <span class="indicator-dot" aria-hidden="true"></span>
     <span>{{ databaseStatus.label }}</span>
     <button class="refresh-button" type="button" title="Vérifier la connexion" aria-label="Vérifier la connexion" @click="checkDatabase">↻</button>
   </aside>
 
-  <main>
+  <VaultPage v-if="currentUser" :user="currentUser" @logout="logout" />
+
+  <main v-else>
     <h1>Password Keeper</h1>
     <p class="intro">Créez un compte ou connectez-vous pour accéder à votre coffre-fort.</p>
 

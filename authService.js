@@ -1,3 +1,5 @@
+const currentUserKey = "password-keeper-current-user";
+
 export async function registerUser(nom, prenom, pseudo, email, password) {
   return request("/api/auth/register", {
     nom: nom.trim(),
@@ -9,10 +11,25 @@ export async function registerUser(nom, prenom, pseudo, email, password) {
 }
 
 export async function loginUser(login, password) {
-  return request("/api/auth/login", {
+  const user = await request("/api/auth/login", {
     login: login.trim().toLowerCase(),
     password
   });
+  localStorage.setItem(currentUserKey, JSON.stringify(user));
+  return user;
+}
+
+export function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem(currentUserKey) || "null");
+  } catch {
+    localStorage.removeItem(currentUserKey);
+    return null;
+  }
+}
+
+export function clearStoredUser() {
+  localStorage.removeItem(currentUserKey);
 }
 
 async function request(path, body) {

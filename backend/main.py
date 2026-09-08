@@ -52,6 +52,7 @@ class RegisterCredentials(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
+    initiales: str
     email: str
     nom: str
     prenom: str
@@ -98,6 +99,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
 def user_response(user: User) -> UserResponse:
     return UserResponse(
         id=user.id,
+        initiales=user.initiales,
         email=user.email,
         nom=user.nom,
         prenom=user.prenom,
