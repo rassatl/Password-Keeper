@@ -34,6 +34,7 @@ class User(Base):
     nom: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     prenom: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     pseudo: Mapped[str | None] = mapped_column(String(50), unique=True, index=True, nullable=True)
+    salt: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column("masterpassword", String(255))
 
 
@@ -66,6 +67,7 @@ class UserResponse(BaseModel):
     email: str
     nom: str
     prenom: str
+    salt: str
     pseudo: str | None
 
 @asynccontextmanager
@@ -113,6 +115,7 @@ def user_response(user: User) -> UserResponse:
         email=user.email,
         nom=user.nom,
         prenom=user.prenom,
+        salt=user.salt,
         pseudo=user.pseudo,
     )
 
@@ -141,6 +144,7 @@ def register(credentials: RegisterCredentials) -> UserResponse:
             prenom=prenom,
             pseudo=pseudo,
             email=email,
+            salt=secrets.token_hex(16),
             password_hash=hash_password(credentials.password),
         )
         session.add(user)

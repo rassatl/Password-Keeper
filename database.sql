@@ -13,6 +13,7 @@ CREATE TABLE utilisateurs (
     prenom VARCHAR(50) UNIQUE NOT NULL,
     pseudo VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    salt VARCHAR(255) NOT NULL,
     masterpassword VARCHAR(255) NOT NULL
 );
 
@@ -48,9 +49,9 @@ CREATE TABLE identifiants (
 
 -- 1. Ajout de deux utilisateurs (les ID 1 et 2 seront générés automatiquement)
 -- Note : Les mots de passe ici simulent des versions "hachées" pour l'exemple
-INSERT INTO utilisateurs (email, initiales, nom, prenom, pseudo, masterpassword) VALUES 
-('alice.dupont@exemple.fr', 'AD', 'alice', 'dupont', 'aloulou', '$2y$10$FauxHashTresLongPourExempleAlice12345'),
-('marc.martin@exemple.fr', 'MM', 'marc', 'martin', 'marquis', '$2y$10$FauxHashTresLongPourExempleMarc98765');
+INSERT INTO utilisateurs (email, initiales, nom, prenom, pseudo, salt, masterpassword) VALUES 
+('alice.dupont@exemple.fr', 'AD', 'alice', 'dupont', 'aloulou', '$2y$10$FauxSaltLongPourExempleAlice12345', '$2y$10$FauxHashTresLongPourExempleAlice12345'),
+('marc.martin@exemple.fr', 'MM', 'marc', 'martin', 'marquis', '$2y$10$FauxSaltLongPourExempleMarc98765', '$2y$10$FauxHashTresLongPourExempleMarc98765');
 
 -- 2. Ajout de categories pour les services
 INSERT INTO password_categories (nom) VALUES 
