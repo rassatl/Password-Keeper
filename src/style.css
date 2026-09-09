@@ -50,6 +50,7 @@ main { width: 100%; min-height: 100vh; padding: 56px clamp(24px, 7vw, 120px); ba
 .password-list { display: grid; gap: 10px; margin-top: 22px; }
 .password-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid #d7e0e7; border-radius: 8px; background: #fbfdfd; }
 .password-service-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 8px; color: #12343b; background: #d8efeb; font-weight: 800; }
+.password-service-mdp-strength { display: grid; width: auto; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 8px; color: #12343b; background: #d8efeb; font-weight: 800; padding: 0 8px; }
 .password-card-details { display: grid; flex: 1; gap: 4px; min-width: 0; }
 .password-card-details span { overflow: hidden; color: #52606d; text-overflow: ellipsis; white-space: nowrap; }
 .password-card code { padding: 5px 8px; border-radius: 4px; color: #52606d; background: #eef3f7; font-size: 0.8rem; }

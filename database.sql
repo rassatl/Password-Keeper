@@ -43,7 +43,9 @@ CREATE TABLE identifiants (
     utilisateur_id INT NOT NULL,
     service VARCHAR(100) NOT NULL,
     service_categorie VARCHAR(100) NOT NULL,
+    favori BOOLEAN NOT NULL,
     mdp TEXT NOT NULL,
+    mdp_force VARCHAR(100) NOT NULL,
 	
     -- Cette contrainte relie l'identifiant à un utilisateur précis.
     -- ON DELETE CASCADE supprime les mots de passe si l'utilisateur supprime son compte.
@@ -64,4 +66,6 @@ INSERT INTO password_categories (nom) VALUES
 ('Email'),
 ('Streaming'),
 ('Social'),
-('Developer');
+('Developpeur'),
+('Travail'),
+('Personel');

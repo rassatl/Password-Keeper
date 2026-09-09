@@ -13,6 +13,7 @@ const emit = defineEmits(["logout"]);
 
 // Passwords et categories state/état
 const passwords = ref([]);
+const favoritePasswords = ref([]);
 const passwordsLoading = ref(true);
 const passwordsError = ref("");
 const showAddPassword = ref(false);
@@ -26,6 +27,7 @@ async function fetchPasswords() {
   try {
     const data = await getPasswords();
     passwords.value = Array.isArray(data) ? data : [];
+    favoritePasswords.value = passwords.value.filter((password) => password.favori);
   } catch (error) {
     passwordsError.value = error.message || "Impossible de charger les mots de passe.";
     console.error("Erreur lors de la récupération des mots de passe:", error);
@@ -90,6 +92,7 @@ function toggleGenerator() {
   }
 }
 
+// Fonction faite a l'aide d'internet
 function generatePassword() {
   const uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const lowers = "abcdefghijklmnopqrstuvwxyz";
@@ -128,7 +131,9 @@ async function addPassword(event) {
     await addPasswordEntry({
       service: formData.get("password-form-service"),
       service_categorie: formData.get("password-form-category"),
-      mdp: formData.get("password-form-secret")
+      favori: formData.get("password-form-favorite") === "on",
+      mdp: formData.get("password-form-secret"),
+      mdp_force: passwordStrength.value
     });
     await fetchPasswords();
     closeAddPassword();
@@ -166,7 +171,7 @@ fetchCategories();
       <button class="sidebar-logout" type="button" @click="emit('logout')">Se déconnecter</button>
     </aside>
 
-    <main class="vault-page">
+<main class="vault-page">
       <header class="vault-header">
         <div>
           <p class="eyebrow">Espace sécurisé</p>
@@ -182,6 +187,7 @@ fetchCategories();
         </div>
       </header>
 
+      <!-- Section "All" -->
       <section v-if="activeCategory === 'all'" class="password-section" aria-live="polite">
         <p class="eyebrow">{{ selectedCategory.label }}</p>
         <div class="password-section-header">
@@ -200,13 +206,49 @@ fetchCategories();
             <div class="password-service-icon">{{ (password.service || password.name || "?").charAt(0).toUpperCase() }}</div>
             <div class="password-card-details">
               <strong>{{ password.service || password.name }}</strong>
-              <span>{{ password.login || "Identifiant non renseigné" }}</span>
+              <span>{{ password.service_categorie || "Catégorie non renseignée" }}</span>
             </div>
             <code>{{ password.mdp || password.value }}</code>
+            <div class="password-service-mdp-strength">
+              <strong :style="{ color: password.mdp_force === 'Fort' ? 'green' : password.mdp_force === 'Moyen' ? 'orange' : 'red' }">
+                {{ password.mdp_force }}
+              </strong>
+            </div>
           </article>
         </div>
       </section>
 
+      <section v-else-if="activeCategory === 'favorites'" class="password-section" aria-live="polite">
+        <p class="eyebrow">{{ selectedCategory.label }}</p>
+        <div class="password-section-header">
+          <div>
+            <h2>Vos mots de passe</h2>
+            <p>{{ passwords.length }} identifiant{{ passwords.length > 1 ? "s" : "" }} enregistré{{ passwords.length > 1 ? "s" : "" }}</p>
+          </div>
+          <button type="button" @click="openAddPassword">Ajouter un identifiant</button>
+        </div>
+
+        <p v-if="passwordsLoading" class="password-feedback">Chargement des mots de passe...</p>
+        <p v-else-if="passwordsError" class="password-feedback error">{{ passwordsError }}</p>
+        <p v-else-if="favoritePasswords.length === 0" class="password-feedback">Aucun mot de passe enregistré.</p>
+        <div v-else class="password-list">
+          <article v-for="password in favoritePasswords" :key="password.id" class="password-card">
+            <div class="password-service-icon">{{ (password.service || password.name || "?").charAt(0).toUpperCase() }}</div>
+            <div class="password-card-details">
+              <strong>{{ password.service || password.name }}</strong>
+              <span>{{ password.service_categorie || "Catégorie non renseignée" }}</span>
+            </div>
+            <code>{{ password.mdp || password.value }}</code>
+            <div class="password-service-mdp-strength">
+              <strong :style="{ color: password.mdp_force === 'Fort' ? 'green' : password.mdp_force === 'Moyen' ? 'orange' : 'red' }">
+                {{ password.mdp_force }}
+              </strong>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Section par défaut -->
       <section v-else class="vault-empty-state" aria-live="polite">
         <p class="eyebrow">{{ selectedCategory.label }}</p>
         <h2>Aucun élément dans {{ selectedCategory.label }}</h2>
@@ -263,8 +305,8 @@ fetchCategories();
             </p>
 
             <div style="display: flex; gap: 10px;">
-              <button type="button" @click="generatePassword">Regenerate</button>
-              <button type="button" @click="useGeneratedPassword">Use this password</button>
+              <button type="button" @click="generatePassword">Regénérer</button>
+              <button type="button" @click="useGeneratedPassword">Utiliser ce mot de passe</button>
             </div>
           </div>
 
@@ -277,7 +319,7 @@ fetchCategories();
             </select>
           </label>
           
-          <label class="favorite-option"><input type="checkbox" /> Ajouter aux favoris</label>
+          <label class="favorite-option"><input type="checkbox" name="password-form-favorite" /> Ajouter aux favoris</label>
           
           <footer class="modal-actions">
             <button class="modal-cancel" type="button" @click="closeAddPassword">Annuler</button>
