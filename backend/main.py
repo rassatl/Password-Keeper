@@ -344,6 +344,28 @@ def add_password_entry(entry: PasswordEntryCreate, user: User = Depends(get_curr
             mdp_force=password_entry.mdp_force
         )
 
+@app.put("/api/passwords/{entry_id}", response_model=PasswordEntryResponse)
+def update_password_entry(entry_id: int, entry: PasswordEntryCreate, user: User = Depends(get_current_user)) -> PasswordEntryResponse:
+    with Session(engine) as session:
+        password_entry = session.get(PasswordEntry, entry_id)
+        if password_entry is None or password_entry.utilisateur_id != user.id:
+            raise HTTPException(status_code=404, detail="Identifiant introuvable.")
+        for field, value in entry.model_dump().items():
+            setattr(password_entry, field, value)
+        password_entry.mdp = encrypt_vault_password(entry.mdp, user)
+        session.commit()
+        session.refresh(password_entry)
+        return PasswordEntryResponse(
+            id=password_entry.id,
+            identifiant=password_entry.identifiant,
+            url_service=password_entry.url_service,
+            service=password_entry.service,
+            service_categorie=password_entry.service_categorie,
+            favori=password_entry.favori,
+            mdp=decrypt_vault_password(password_entry.mdp, user),
+            mdp_force=password_entry.mdp_force
+        )
+
 @app.get("/api/categories", response_model=list[PasswordCategoryResponse])
 def get_categories(user: User = Depends(get_current_user)) -> list[PasswordCategoryResponse]:
     with Session(engine) as session:

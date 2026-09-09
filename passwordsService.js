@@ -48,6 +48,13 @@ export async function addPasswordEntry(entry) {
   });
 }
 
+export async function updatePasswordEntry(id, entry) {
+  return request(`/api/passwords/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(entry)
+  });
+}
+
 export async function getCategories() {
   return request("/api/categories", { method: "GET" });
 }
