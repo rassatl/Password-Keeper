@@ -275,8 +275,9 @@ fetchCategories();
         </div>
       </header>
 
-      <!-- Section "Tout" -->
-      <section v-if="activeCategory !== 'favoris'" class="password-section" aria-live="polite">
+      <!-- Section "Tout" / "Favoris" / Catégorie -->
+      <section
+        v-if="visiblePasswords.length > 0 || activeCategory === 'tout' || activeCategory === 'favoris'" class="password-section" aria-live="polite">
         <p class="eyebrow">{{ selectedCategory.nom }}</p>
         <div class="password-section-header">
           <div>
@@ -291,58 +292,6 @@ fetchCategories();
         <p v-else-if="visiblePasswords.length === 0" class="password-feedback">Aucun mot de passe enregistré.</p>
         <div v-else class="password-list">
           <article v-for="password in visiblePasswords" :key="password.id" class="password-card">
-            <div class="password-service-icon">{{ (password.service || password.name || "?").charAt(0).toUpperCase() }}</div>
-            <div class="password-card-details">
-              <strong>{{ password.service || password.name }}</strong>
-              <span>{{ password.service_categorie || "Catégorie non renseignée" }}</span>
-              <span>{{ password.identifiant || "Identifiant non renseigné" }}</span>
-            </div>
-            <div class="password-wrapper password-display">
-            <code>{{ isPasswordVisible(password.id) ? (password.mdp || password.value) : '••••••••••' }}</code>
-            <button
-              type="button"
-              class="toggle-password-btn"
-              @click="togglePasswordVisibility(password.id)"
-              :title="isPasswordVisible(password.id) ? 'Cacher le mot de passe' : 'Afficher le mot de passe'"
-            >
-              <svg v-if="isPasswordVisible(password.id)" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-            <button
-                type="button"
-                class="toggle-password-btn"
-                @click="copyPassword(password)"
-                :title="copiedPasswordId === password.id ? 'Copié !' : 'Copier le mot de passe'"
-              >
-                <svg v-if="copiedPasswordId === password.id" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-          </div>
-            <div class="password-service-mdp-strength">
-              <strong :style="{ color: password.mdp_force === 'Fort' ? 'green' : password.mdp_force === 'Moyen' ? 'orange' : 'red' }">
-                {{ password.mdp_force }}
-              </strong>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <!-- Section "Favoris" -->
-      <section v-else-if="activeCategory === 'favoris'" class="password-section" aria-live="polite">
-        <p class="eyebrow">{{ selectedCategory.nom }}</p>
-        <div class="password-section-header">
-          <div>
-            <h2>Vos mots de passe</h2>
-            <p>{{ visiblePasswords.length }} identifiant{{ visiblePasswords.length > 1 ? "s" : "" }} enregistré{{ visiblePasswords.length > 1 ? "s" : "" }}</p>
-          </div>
-          <button type="button" @click="openAddPassword">Ajouter un identifiant</button>
-        </div>
-
-        <p v-if="passwordsLoading" class="password-feedback">Chargement des mots de passe...</p>
-        <p v-else-if="passwordsError" class="password-feedback error">{{ passwordsError }}</p>
-        <p v-else-if="favoritePasswords.length === 0" class="password-feedback">Aucun mot de passe enregistré.</p>
-        <div v-else class="password-list">
-          <article v-for="password in favoritePasswords" :key="password.id" class="password-card">
             <div class="password-service-icon">{{ (password.service || password.name || "?").charAt(0).toUpperCase() }}</div>
             <div class="password-card-details">
               <strong>{{ password.service || password.name }}</strong>
@@ -379,7 +328,7 @@ fetchCategories();
         </div>
       </section>
 
-      <!-- Section par défaut -->
+      <!-- Section par défaut-->
       <section v-else class="vault-empty-state" aria-live="polite">
         <p class="eyebrow">{{ selectedCategory.nom }}</p>
         <h2>Aucun élément dans {{ selectedCategory.nom }}</h2>
