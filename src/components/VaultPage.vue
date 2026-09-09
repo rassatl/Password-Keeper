@@ -221,6 +221,24 @@ async function addPassword(event) {
   }
 }
 
+// Copie du mot de passe dans le presse-papiers
+const copiedPasswordId = ref(null);
+
+async function copyPassword(password) {
+  const value = password.mdp || password.value || "";
+  try {
+    await navigator.clipboard.writeText(value);
+    copiedPasswordId.value = password.id;
+    setTimeout(() => {
+      if (copiedPasswordId.value === password.id) {
+        copiedPasswordId.value = null;
+      }
+    }, 1500);
+  } catch (error) {
+    console.error("Erreur lors de la copie du mot de passe:", error);
+  }
+}
+
 fetchPasswords();
 fetchCategories();
 </script>
@@ -290,6 +308,15 @@ fetchCategories();
               <svg v-if="isPasswordVisible(password.id)" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
               <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
+            <button
+                type="button"
+                class="toggle-password-btn"
+                @click="copyPassword(password)"
+                :title="copiedPasswordId === password.id ? 'Copié !' : 'Copier le mot de passe'"
+              >
+                <svg v-if="copiedPasswordId === password.id" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
           </div>
             <div class="password-service-mdp-strength">
               <strong :style="{ color: password.mdp_force === 'Fort' ? 'green' : password.mdp_force === 'Moyen' ? 'orange' : 'red' }">
@@ -332,6 +359,15 @@ fetchCategories();
               >
                 <svg v-if="isPasswordVisible(password.id)" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
                 <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button
+                type="button"
+                class="toggle-password-btn"
+                @click="copyPassword(password)"
+                :title="copiedPasswordId === password.id ? 'Copié !' : 'Copier le mot de passe'"
+              >
+                <svg v-if="copiedPasswordId === password.id" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
             </div>
             <div class="password-service-mdp-strength">
