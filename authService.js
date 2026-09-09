@@ -21,7 +21,8 @@ export async function loginUser(login, password) {
 
 export function getStoredUser() {
   try {
-    return JSON.parse(localStorage.getItem(currentUserKey) || "null");
+    const user = JSON.parse(localStorage.getItem(currentUserKey) || "null");
+    return user?.session_token ? user : null;
   } catch {
     localStorage.removeItem(currentUserKey);
     return null;
@@ -32,21 +33,43 @@ export function clearStoredUser() {
   localStorage.removeItem(currentUserKey);
 }
 
-async function request(path, body) {
+export function notifySessionExpired() {
+  clearStoredUser();
+  window.dispatchEvent(new CustomEvent("auth-expired"));
+}
+
+export async function logoutUser() {
+  await request("/api/auth/logout", undefined);
+  clearStoredUser();
+}
+
+async function request(path, body, options = {}) {
   const apiBaseUrl = import.meta.env.DEV ? "" : (import.meta.env.VITE_API_URL || "");
+  const storedUser = getStoredUser();
+  const requestOptions = {
+    method: "POST",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(storedUser?.session_token ? { Authorization: `Bearer ${storedUser.session_token}` } : {}),
+      ...(options.headers || {})
+    }
+  };
+  if (body !== undefined) {
+    requestOptions.body = JSON.stringify(body);
+  }
   let response;
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
+    response = await fetch(`${apiBaseUrl}${path}`, requestOptions);
   } catch {
     throw new Error("Impossible de joindre l'API. Lancez FastAPI sur le port 8000.");
   }
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && getStoredUser()?.session_token) {
+      notifySessionExpired();
+    }
     throw new Error(data.detail || "Le serveur est indisponible.");
   }
 
