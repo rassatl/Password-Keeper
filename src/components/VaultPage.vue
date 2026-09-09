@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref } from "vue";
 import { getPasswords, getCategories, addPasswordEntry, addCategory, updatePasswordEntry } from "../../passwordsService.js";
+import { unlockVaultWithPassword } from "../../authService.js";
+import { isVaultUnlocked } from "../../vaultCrypto.js";
 
 const props = defineProps({
   user: {
@@ -10,6 +12,29 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["logout"]);
+
+// La clé de chiffrement du coffre n'est jamais persistée (voir vaultCrypto.js) :
+// après un rechargement de page, il faut ressaisir le mot de passe maître.
+const vaultLocked = ref(!isVaultUnlocked());
+const showUnlockPassword = ref(false);
+const unlockError = ref("");
+const unlockLoading = ref(false);
+
+async function unlockVaultForm(event) {
+  const formData = new FormData(event.currentTarget);
+  unlockLoading.value = true;
+  unlockError.value = "";
+  try {
+    await unlockVaultWithPassword(formData.get("unlock-password"), props.user.kdf_salt);
+    vaultLocked.value = false;
+    showUnlockPassword.value = false;
+    await fetchPasswords();
+  } catch (error) {
+    unlockError.value = error.message || "Impossible de déverrouiller le coffre.";
+  } finally {
+    unlockLoading.value = false;
+  }
+}
 
 // Passwords et categories state/état
 const passwords = ref([]);
@@ -22,6 +47,10 @@ const addPasswordLoading = ref(false);
 const newPasswordSecret = ref("");
 
 async function fetchPasswords() {
+  if (vaultLocked.value) {
+    passwordsLoading.value = false;
+    return;
+  }
   passwordsLoading.value = true;
   passwordsError.value = "";
   try {
@@ -321,8 +350,31 @@ fetchCategories();
         </div>
       </header>
 
+      <!-- Coffre verrouillé : la clé de chiffrement doit être redérivée du mot de passe maître -->
+      <section v-if="vaultLocked" class="vault-empty-state" aria-live="polite">
+        <p class="eyebrow">Coffre verrouillé</p>
+        <h2>Déverrouillez votre coffre</h2>
+        <p>Vos mots de passe sont chiffrés avec une clé dérivée de votre mot de passe maître, qui n'est jamais
+          envoyée au serveur. Ressaisissez-le pour déchiffrer vos identifiants sur cet appareil.</p>
+        <form class="password-form" style="max-width: 320px" autocomplete="off" @submit.prevent="unlockVaultForm">
+          <label>Mot de passe maître
+            <div class="password-wrapper">
+              <input name="unlock-password" :type="showUnlockPassword ? 'text' : 'password'"
+                autocomplete="current-password" required />
+              <button type="button" class="toggle-password-btn" @click="showUnlockPassword = !showUnlockPassword"
+                :title="showUnlockPassword ? 'Cacher le mot de passe' : 'Afficher le mot de passe'">
+                <svg v-if="showUnlockPassword" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </label>
+          <p v-if="unlockError" class="password-feedback error">{{ unlockError }}</p>
+          <button type="submit" :disabled="unlockLoading">{{ unlockLoading ? "Déverrouillage..." : "Déverrouiller" }}</button>
+        </form>
+      </section>
+
       <!-- Section "Tout" / "Favoris" / Catégorie -->
-      <section v-if="visiblePasswords.length > 0 || activeCategory === 'tout' || activeCategory === 'favoris'"
+      <section v-else-if="visiblePasswords.length > 0 || activeCategory === 'tout' || activeCategory === 'favoris'"
         class="password-section" aria-live="polite">
         <p class="eyebrow">{{ selectedCategory.nom }}</p>
         <div class="password-section-header">
@@ -347,7 +399,8 @@ fetchCategories();
               <span>{{ password.identifiant || "Identifiant non renseigné" }}</span>
             </div>
             <div class="password-wrapper password-display">
-              <code>{{ isPasswordVisible(password.id) ? (password.mdp || password.value) : '••••••••••' }}</code>
+              <code v-if="password.decryptionFailed">⚠ Déchiffrement impossible</code>
+              <code v-else>{{ isPasswordVisible(password.id) ? (password.mdp || password.value) : '••••••••••' }}</code>
               <button type="button" class="toggle-password-btn" @click="togglePasswordVisibility(password.id)"
                 :title="isPasswordVisible(password.id) ? 'Cacher le mot de passe' : 'Afficher le mot de passe'">
                 <svg v-if="isPasswordVisible(password.id)" xmlns="http://www.w3.org/2000/svg" width="18" height="18"

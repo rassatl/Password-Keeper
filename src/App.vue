@@ -1,12 +1,13 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue";
-import { clearStoredUser, getStoredUser, loginUser, logoutUser, registerUser } from "../authService.js";
+import { fetchCurrentUser, loginUser, logoutUser, registerUser } from "../authService.js";
+import { lockVault } from "../vaultCrypto.js";
 import VaultPage from "./components/VaultPage.vue";
 
 const status = ref({ message: "", type: "" });
 const loadingAction = ref("");
 const isRegistering = ref(false);
-const currentUser = ref(getStoredUser());
+const currentUser = ref(null);
 const databaseStatus = ref({ label: "Vérification...", type: "checking" });
 
 // Variables pour gérer la visibilité des mots de passe
@@ -51,7 +52,6 @@ async function handleSubmit(action, successMessage, event) {
       );
       currentUser.value = null;
       isRegistering.value = false;
-      clearStoredUser();
     } else {
       currentUser.value = await loginUser(formData.get("login"), formData.get("password"));
     }
@@ -74,13 +74,14 @@ async function handleSubmit(action, successMessage, event) {
 
 function handleSessionExpired() {
   currentUser.value = null;
-  clearStoredUser();
+  lockVault();
   status.value = { message: "Votre session a expiré. Veuillez vous reconnecter.", type: "error" };
   isRegistering.value = false;
 }
 
-onMounted(() => {
+onMounted(async () => {
   checkDatabase();
+  currentUser.value = await fetchCurrentUser();
   window.addEventListener("auth-expired", handleSessionExpired);
 });
 
@@ -89,11 +90,7 @@ onUnmounted(() => {
 });
 
 async function logout() {
-  try {
-    await logoutUser();
-  } catch {
-    clearStoredUser();
-  }
+  await logoutUser();
   currentUser.value = null;
   status.value = { message: "", type: "" };
 }

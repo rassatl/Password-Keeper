@@ -28,7 +28,7 @@ CREATE TABLE utilisateurs (
     prenom VARCHAR(50) UNIQUE NOT NULL,
     pseudo VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    vault_key VARCHAR(255) NOT NULL,
+    kdf_salt VARCHAR(32) NOT NULL,
     masterpassword VARCHAR(255) NOT NULL
 );
 

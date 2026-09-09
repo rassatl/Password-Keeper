@@ -1,12 +1,14 @@
+import { decryptSecret, encryptSecret } from "./vaultCrypto.js";
+
 async function request(path, options = {}) {
   const apiBaseUrl = import.meta.env.DEV ? "" : (import.meta.env.VITE_API_URL || "");
   let response;
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...(getSessionToken() ? { Authorization: `Bearer ${getSessionToken()}` } : {}),
         ...(options.headers || {})
       }
     });
@@ -17,7 +19,6 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem("password-keeper-current-user");
       window.dispatchEvent(new CustomEvent("auth-expired"));
     }
     const detail = Array.isArray(data.detail)
@@ -29,30 +30,36 @@ async function request(path, options = {}) {
   return data;
 }
 
-function getSessionToken() {
+// Chaque secret est chiffré/déchiffré côté client (voir vaultCrypto.js) :
+// le serveur ne reçoit et ne stocke jamais de mot de passe en clair.
+async function decryptEntry(entry) {
   try {
-    return JSON.parse(localStorage.getItem("password-keeper-current-user") || "null")?.session_token;
-  } catch {
-    return null;
+    return { ...entry, mdp: await decryptSecret(entry.mdp) };
+  } catch (error) {
+    console.error("Impossible de déchiffrer cet identifiant:", error);
+    return { ...entry, mdp: "", decryptionFailed: true };
   }
 }
 
 export async function getPasswords() {
-  return request("/api/passwords", { method: "GET" });
+  const entries = await request("/api/passwords", { method: "GET" });
+  return Promise.all(entries.map(decryptEntry));
 }
 
 export async function addPasswordEntry(entry) {
-  return request("/api/passwords", {
+  const result = await request("/api/passwords", {
     method: "POST",
-    body: JSON.stringify(entry)
+    body: JSON.stringify({ ...entry, mdp: await encryptSecret(entry.mdp) })
   });
+  return decryptEntry(result);
 }
 
 export async function updatePasswordEntry(id, entry) {
-  return request(`/api/passwords/${id}`, {
+  const result = await request(`/api/passwords/${id}`, {
     method: "PUT",
-    body: JSON.stringify(entry)
+    body: JSON.stringify({ ...entry, mdp: await encryptSecret(entry.mdp) })
   });
+  return decryptEntry(result);
 }
 
 export async function getCategories() {
