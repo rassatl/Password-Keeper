@@ -60,10 +60,12 @@ class PasswordEntry(Base):
     mdp_force: Mapped[str] = mapped_column(String(100))
 
 class PasswordCategory(Base):
-    __tablename__ = "password_categories"
+    __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    id_categorie: Mapped[str] = mapped_column(String(50), unique=True)
     nom: Mapped[str] = mapped_column(String(50), unique=True)
+    description: Mapped[str] = mapped_column(String(255))
 
 class Credentials(BaseModel):
     login: str = Field(min_length=3, max_length=50)
@@ -78,7 +80,9 @@ class RegisterCredentials(BaseModel):
 
 class PasswordCategoryResponse(BaseModel):
     id: int
-    label: str = Field(min_length=1, max_length=100)
+    id_categorie: str
+    nom: str = Field(min_length=1, max_length=100)
+    description: str = Field(min_length=1, max_length=255)
 
 class PasswordEntryResponse(BaseModel):
     id: int
@@ -298,12 +302,12 @@ def get_passwords(user: User = Depends(get_current_user)) -> list[PasswordEntryR
             for entry in entries
         ]
 
-@app.get("/api/password-categories", response_model=list[PasswordCategoryResponse])
-def get_password_categories() -> list[PasswordCategoryResponse]:
+@app.get("/api/categories", response_model=list[PasswordCategoryResponse])
+def get_categories() -> list[PasswordCategoryResponse]:
     with Session(engine) as session:
         categories = session.scalars(select(PasswordCategory).order_by(PasswordCategory.nom)).all()
         return [
-            PasswordCategoryResponse(id=category.id, label=category.nom)
+            PasswordCategoryResponse(id=category.id, id_categorie=category.id_categorie, nom=category.nom, description=category.description)
             for category in categories
         ]
     

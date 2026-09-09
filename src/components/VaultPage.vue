@@ -37,26 +37,48 @@ async function fetchPasswords() {
 }
 
 // Catégories
-const password_categories = ref([]);
+const categories = ref([
+      { id_categorie: "tout", nom: "Tout les identifiants", description: "Tous vos identifiants enregistrés." },
+      { id_categorie: "favoris", nom: "Favoris", description: "Vos identifiants favoris." }
+    ]);
 
 async function fetchCategories() {
   try {
     const data = await getCategories();
-    password_categories.value = Array.isArray(data) ? data : [];
+    categories.value = [
+      { id_categorie: "tout", nom: "Tout les identifiants", description: "Tous vos identifiants enregistrés." },
+      { id_categorie: "favoris", nom: "Favoris", description: "Vos identifiants favoris." },
+      ...(Array.isArray(data) ? data : [])
+    ];
   } catch (error) {
     console.error("Erreur lors de la récupération des catégories:", error);
   }
 }
 
 // Barre latérale
-const activeCategory = ref("all");
-const categories = [
-  { id: "all", label: "All passwords", description: "Tous vos identifiants enregistrés." },
-  { id: "favorites", label: "Favorites", description: "Vos identifiants favoris." },
-  { id: "work", label: "Work", description: "Vos accès professionnels." },
-  { id: "personal", label: "Personal", description: "Vos accès personnels." }
-];
-const selectedCategory = computed(() => categories.find((category) => category.id === activeCategory.value));
+const activeCategory = ref("tout");
+const selectedCategory = computed(() => {
+  return categories.value.find(
+    (category) => category.id_categorie === activeCategory.value
+  ) ?? {
+    nom: "Catégorie inconnue",
+    description: ""
+  };
+});
+
+const visiblePasswords = computed(() => {
+  if (activeCategory.value === "favoris") {
+    return favoritePasswords.value;
+  }
+
+  if (activeCategory.value === "tout") {
+    return passwords.value;
+  }
+
+  return passwords.value.filter(
+    (password) => password.service_categorie === selectedCategory.value.nom
+  );
+});
 
 function selectCategory(categoryId) {
   activeCategory.value = categoryId;
@@ -159,23 +181,23 @@ fetchCategories();
       <nav aria-label="Password categories">
         <button
           v-for="category in categories"
-          :key="category.id"
+          :key="category.id_categorie"
           class="category-link"
-          :class="{ active: activeCategory === category.id }"
+          :class="{ active: activeCategory === category.id_categorie }"
           type="button"
-          @click="selectCategory(category.id)"
+          @click="selectCategory(category.id_categorie)"
         >
-          {{ category.label }}
+          {{ category.nom }}
         </button>
       </nav>
       <button class="sidebar-logout" type="button" @click="emit('logout')">Se déconnecter</button>
     </aside>
 
-<main class="vault-page">
+    <main class="vault-page">
       <header class="vault-header">
         <div>
           <p class="eyebrow">Espace sécurisé</p>
-          <h1>{{ selectedCategory.label }}</h1>
+          <h1>{{ selectedCategory.nom }}</h1>
           <p class="intro">{{ selectedCategory.description }}</p>
         </div>
         <div class="profile-block">
@@ -187,22 +209,22 @@ fetchCategories();
         </div>
       </header>
 
-      <!-- Section "All" -->
-      <section v-if="activeCategory === 'all'" class="password-section" aria-live="polite">
-        <p class="eyebrow">{{ selectedCategory.label }}</p>
+      <!-- Section "Tout" -->
+      <section v-if="activeCategory !== 'favoris'" class="password-section" aria-live="polite">
+        <p class="eyebrow">{{ selectedCategory.nom }}</p>
         <div class="password-section-header">
           <div>
             <h2>Vos mots de passe</h2>
-            <p>{{ passwords.length }} identifiant{{ passwords.length > 1 ? "s" : "" }} enregistré{{ passwords.length > 1 ? "s" : "" }}</p>
+            <p>{{ visiblePasswords.length }} identifiant{{ visiblePasswords.length > 1 ? "s" : "" }} enregistré{{ visiblePasswords.length > 1 ? "s" : "" }}</p>
           </div>
           <button type="button" @click="openAddPassword">Ajouter un identifiant</button>
         </div>
 
         <p v-if="passwordsLoading" class="password-feedback">Chargement des mots de passe...</p>
         <p v-else-if="passwordsError" class="password-feedback error">{{ passwordsError }}</p>
-        <p v-else-if="passwords.length === 0" class="password-feedback">Aucun mot de passe enregistré.</p>
+        <p v-else-if="visiblePasswords.length === 0" class="password-feedback">Aucun mot de passe enregistré.</p>
         <div v-else class="password-list">
-          <article v-for="password in passwords" :key="password.id" class="password-card">
+          <article v-for="password in visiblePasswords" :key="password.id" class="password-card">
             <div class="password-service-icon">{{ (password.service || password.name || "?").charAt(0).toUpperCase() }}</div>
             <div class="password-card-details">
               <strong>{{ password.service || password.name }}</strong>
@@ -218,12 +240,13 @@ fetchCategories();
         </div>
       </section>
 
-      <section v-else-if="activeCategory === 'favorites'" class="password-section" aria-live="polite">
-        <p class="eyebrow">{{ selectedCategory.label }}</p>
+      <!-- Section "Favoris" -->
+      <section v-else-if="activeCategory === 'favoris'" class="password-section" aria-live="polite">
+        <p class="eyebrow">{{ selectedCategory.nom }}</p>
         <div class="password-section-header">
           <div>
             <h2>Vos mots de passe</h2>
-            <p>{{ passwords.length }} identifiant{{ passwords.length > 1 ? "s" : "" }} enregistré{{ passwords.length > 1 ? "s" : "" }}</p>
+            <p>{{ visiblePasswords.length }} identifiant{{ visiblePasswords.length > 1 ? "s" : "" }} enregistré{{ visiblePasswords.length > 1 ? "s" : "" }}</p>
           </div>
           <button type="button" @click="openAddPassword">Ajouter un identifiant</button>
         </div>
@@ -250,8 +273,8 @@ fetchCategories();
 
       <!-- Section par défaut -->
       <section v-else class="vault-empty-state" aria-live="polite">
-        <p class="eyebrow">{{ selectedCategory.label }}</p>
-        <h2>Aucun élément dans {{ selectedCategory.label }}</h2>
+        <p class="eyebrow">{{ selectedCategory.nom }}</p>
+        <h2>Aucun élément dans {{ selectedCategory.nom }}</h2>
         <p>Les identifiants de cette catégorie apparaîtront ici.</p>
         <button type="button" @click="openAddPassword">Ajouter un identifiant</button>
       </section>
@@ -313,8 +336,8 @@ fetchCategories();
           <label>Catégorie
             <select name="password-form-category" required>
                 <option value="">Sélectionnez une catégorie</option>
-                <option v-for="category in password_categories" :key="category.id" :value="category.label">
-                  {{ category.label }}
+                <option v-for="category in categories.filter(c => c.id_categorie !== 'tout' && c.id_categorie !== 'favoris')" :key="category.id_categorie" :value="category.nom">
+                  {{ category.nom }}
                 </option>
             </select>
           </label>

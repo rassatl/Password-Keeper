@@ -2,7 +2,7 @@
 -- Nettoyage
 DROP TABLE IF EXISTS sessions CASCADE;
 DROP TABLE IF EXISTS identifiants CASCADE;
-DROP TABLE IF EXISTS password_categories CASCADE;	
+DROP TABLE IF EXISTS categories CASCADE;	
 DROP TABLE IF EXISTS utilisateurs CASCADE;
 
 
@@ -31,10 +31,12 @@ CREATE TABLE sessions (
 );
 
 
--- Création de la table password_categories
-CREATE TABLE password_categories (
+-- Création de la table categories
+CREATE TABLE categories (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    nom VARCHAR(50) NOT NULL UNIQUE
+    id_categorie VARCHAR(50) NOT NULL UNIQUE,
+    nom VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255) NOT NULL
 );
 
 -- Création de la table identifiants
@@ -58,14 +60,14 @@ CREATE TABLE identifiants (
     -- ON DELETE CASCADE supprime les mots de passe si l'utilisateur supprime son compte.
     CONSTRAINT fk_service 
         FOREIGN KEY (service_categorie)
-        REFERENCES password_categories (nom)
+        REFERENCES categories (nom)
 );
 
 -- Ajout de categories pour les services
-INSERT INTO password_categories (nom) VALUES 
-('Email'),
-('Streaming'),
-('Social'),
-('Developpeur'),
-('Travail'),
-('Personel');
+INSERT INTO categories (id_categorie, nom, description) VALUES 
+('email', 'Email', 'Vos identifiants email'),
+('streaming', 'Streaming', 'Vos identifiants streaming'),
+('social', 'Social', 'Vos identifiants sociaux'),
+('developpeur', 'Developpeur', 'Vos identifiants de développement'),
+('travail', 'Travail', 'Vos identifiants professionnels'),
+('personel', 'Personel', 'Vos identifiants personnels');

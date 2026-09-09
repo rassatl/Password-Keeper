@@ -49,5 +49,5 @@ export async function addPasswordEntry(entry) {
 }
 
 export async function getCategories() {
-  return request("/api/password-categories", { method: "GET" });
+  return request("/api/categories", { method: "GET" });
 }
