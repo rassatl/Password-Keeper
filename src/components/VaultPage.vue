@@ -36,6 +36,21 @@ async function fetchPasswords() {
   }
 }
 
+// Gestion de la visibilité des mots de passe affichés dans les listes
+const visiblePasswordIds = ref(new Set());
+
+function togglePasswordVisibility(id) {
+  if (visiblePasswordIds.value.has(id)) {
+    visiblePasswordIds.value.delete(id);
+  } else {
+    visiblePasswordIds.value.add(id);
+  }
+}
+
+function isPasswordVisible(id) {
+  return visiblePasswordIds.value.has(id);
+}
+
 // Catégories
 const showAddCategory = ref(false);
 const addCategoryLoading = ref(false);
@@ -261,7 +276,18 @@ fetchCategories();
               <strong>{{ password.service || password.name }}</strong>
               <span>{{ password.service_categorie || "Catégorie non renseignée" }}</span>
             </div>
-            <code>{{ password.mdp || password.value }}</code>
+            <div class="password-wrapper password-display">
+            <code>{{ isPasswordVisible(password.id) ? (password.mdp || password.value) : '••••••••••' }}</code>
+            <button
+              type="button"
+              class="toggle-password-btn"
+              @click="togglePasswordVisibility(password.id)"
+              :title="isPasswordVisible(password.id) ? 'Cacher le mot de passe' : 'Afficher le mot de passe'"
+            >
+              <svg v-if="isPasswordVisible(password.id)" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
             <div class="password-service-mdp-strength">
               <strong :style="{ color: password.mdp_force === 'Fort' ? 'green' : password.mdp_force === 'Moyen' ? 'orange' : 'red' }">
                 {{ password.mdp_force }}
@@ -292,7 +318,18 @@ fetchCategories();
               <strong>{{ password.service || password.name }}</strong>
               <span>{{ password.service_categorie || "Catégorie non renseignée" }}</span>
             </div>
-            <code>{{ password.mdp || password.value }}</code>
+            <div class="password-wrapper password-display">
+              <code>{{ isPasswordVisible(password.id) ? (password.mdp || password.value) : '••••••••••' }}</code>
+              <button
+                type="button"
+                class="toggle-password-btn"
+                @click="togglePasswordVisibility(password.id)"
+                :title="isPasswordVisible(password.id) ? 'Cacher le mot de passe' : 'Afficher le mot de passe'"
+              >
+                <svg v-if="isPasswordVisible(password.id)" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
             <div class="password-service-mdp-strength">
               <strong :style="{ color: password.mdp_force === 'Fort' ? 'green' : password.mdp_force === 'Moyen' ? 'orange' : 'red' }">
                 {{ password.mdp_force }}
@@ -327,7 +364,9 @@ fetchCategories();
           <label>Mot de passe
             <input 
               name="password-form-secret" 
-              type="password" 
+              type="password"
+              minlength="8" 
+              maxlength="64"
               autocomplete="new-password" 
               placeholder="Votre mot de passe" 
               v-model="newPasswordSecret"
@@ -337,7 +376,7 @@ fetchCategories();
 
           <!-- Bouton pour ouvrir/fermer le générateur -->
           <button type="button" class="btn-generate-toggle" @click="toggleGenerator">
-            Generate Password
+            Générer un mot de passe
           </button>
 
           <!-- Zone du générateur -->

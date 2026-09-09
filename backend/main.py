@@ -315,10 +315,7 @@ def get_passwords(user: User = Depends(get_current_user)) -> list[PasswordEntryR
         ]
     
 @app.post("/api/passwords", response_model=PasswordEntryResponse, status_code=status.HTTP_201_CREATED)
-def add_password_entry(
-    entry: PasswordEntryCreate,
-    user: User = Depends(get_current_user),
-) -> PasswordEntryResponse:
+def add_password_entry(entry: PasswordEntryCreate, user: User = Depends(get_current_user)) -> PasswordEntryResponse:
     with Session(engine) as session:
         password_entry = PasswordEntry(
             **entry.model_dump(),
@@ -338,7 +335,7 @@ def add_password_entry(
         )
 
 @app.get("/api/categories", response_model=list[PasswordCategoryResponse])
-def get_categories() -> list[PasswordCategoryResponse]:
+def get_categories(user: User = Depends(get_current_user)) -> list[PasswordCategoryResponse]:
     with Session(engine) as session:
         categories = session.scalars(select(PasswordCategory).order_by(PasswordCategory.nom)).all()
         return [
@@ -346,19 +343,10 @@ def get_categories() -> list[PasswordCategoryResponse]:
             for category in categories
         ]
     
-@app.post(
-    "/api/categories",
-    response_model=PasswordCategoryResponse,
-    status_code=status.HTTP_201_CREATED
-)
-def add_category(
-    category: PasswordCategoryCreate,
-    user: User = Depends(get_current_user),
-) -> PasswordCategoryResponse:
-
+@app.post("/api/categories", response_model=PasswordCategoryResponse, status_code=status.HTTP_201_CREATED)
+def add_category(category: PasswordCategoryCreate, user: User = Depends(get_current_user)) -> PasswordCategoryResponse:
     nom = category.nom.strip()
     description = category.description.strip()
-
     id_categorie = generate_category_id(nom)
 
     if not id_categorie:

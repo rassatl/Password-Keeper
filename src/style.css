@@ -56,6 +56,16 @@ main { width: 100%; min-height: 100vh; padding: 56px clamp(24px, 7vw, 120px); ba
 .password-card code { padding: 5px 8px; border-radius: 4px; color: #52606d; background: #eef3f7; font-size: 0.8rem; }
 .password-feedback { margin-top: 26px; color: #52606d; }
 .password-feedback.error { color: #b42318; }
+.password-wrapper { position: relative; display: flex; align-items: center; width: 100%; }
+.password-wrapper input { width: 100%; padding-right: 40px; }
+.password-card .password-wrapper.password-display { display: inline-flex; align-items: center; gap: 6px; flex: 0 1 auto; width: auto; }
+.password-card .password-wrapper.password-display code { overflow: hidden; max-width: 500px; text-overflow: ellipsis; white-space: nowrap; }
+.password-card .password-wrapper.password-display .toggle-password-btn { position: static; width: 28px; min-width: 0; height: 28px; min-height: 0; flex-shrink: 0; padding: 0; border-radius: 6px; }
+.password-card .password-wrapper.password-display .toggle-password-btn:hover { background-color: #eef3f7; }
+.password-card .password-wrapper.password-display .toggle-password-btn svg { width: 16px; height: 16px; }
+.toggle-password-btn { position: absolute;  width: fit-content; min-width: 10%; height: 36px; min-height: 36px; align-self: end; justify-self: end; padding: 0 14px; right: 0px; background: none; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #666; transition: color 0.2s ease; }
+.toggle-password-btn:hover { color: #000; background-color: #d9dcdb; }
+.toggle-password-btn:focus { outline: none; }
 .modal-backdrop { position: fixed; z-index: 10; inset: 0; display: grid; place-items: center; padding: 24px; background: rgb(18 52 59 / 48%); }
 .password-modal { width: min(100%, 520px); padding: 28px; border: 1px solid #d7e0e7; border-radius: 12px; background: #fff; box-shadow: 0 24px 70px rgb(18 52 59 / 28%); }
 .modal-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 24px; }
@@ -92,7 +102,7 @@ input:focus { outline: 3px solid rgb(11 100 119 / 20%); border-color: #0b6477; }
 button { margin-top: 4px; padding: 11px 14px; border: 0; border-radius: 6px; color: #fff; background: #0b6477; font: inherit; font-weight: 700; cursor: pointer; }
 button:hover { background: #084c5b; }
 button:disabled { cursor: wait; opacity: 0.65; }
-.auth-content form button { width: fit-content; min-width: 132px; height: 36px; min-height: 36px; align-self: end; justify-self: end; padding: 0 14px; }
+.auth-content form button:not(.toggle-password-btn) { width: fit-content; min-width: 132px; height: 36px; min-height: 36px; align-self: end; justify-self: end; padding: 0 14px; }
 .auth-content form .auth-switch { width: auto; min-width: 0; height: auto; min-height: 0; align-self: start; justify-self: start; margin: 6px 0 0; padding: 0; color: #0b6477; background: transparent; font-size: 0.82rem; font-weight: 700; }
 .auth-content form .auth-switch:hover { color: #084c5b; background: transparent; text-decoration: underline; }
 .status { min-height: 1.5em; width: min(100%, 1040px); margin: 12px auto 0; font-weight: 600; }
