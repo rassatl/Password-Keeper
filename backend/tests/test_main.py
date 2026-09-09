@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from cryptography.fernet import Fernet
@@ -143,5 +144,129 @@ def test_login_rejects_wrong_password(database):
 
     with pytest.raises(Exception) as error:
         main.login(main.Credentials(login="myuser", password="wrong123"))
+
+    assert error.value.status_code == 401
+
+
+def test_private_routes_require_authentication(database):
+    with pytest.raises(Exception) as error:
+        main.get_current_user(None)
+
+    assert error.value.status_code == 401
+    assert main.get_categories.__defaults__[0].dependency is main.get_current_user
+
+
+def test_forged_token_is_rejected(database):
+    with pytest.raises(Exception) as error:
+        main.get_current_user(HTTPAuthorizationCredentials(
+            scheme="Bearer",
+            credentials="forged-token",
+        ))
+
+    assert error.value.status_code == 401
+
+
+def test_expired_session_is_rejected(database):
+    main.register(main.RegisterCredentials(
+        nom="Expire",
+        prenom="Session",
+        pseudo="expired-session",
+        email="expired@example.com",
+        password="secret123",
+    ))
+    login_response = main.login(main.Credentials(
+        login="expired-session",
+        password="secret123",
+    ))
+
+    with Session(database) as session:
+        stored_session = session.scalar(select(main.UserSession))
+        stored_session.date_expiration = datetime.now(timezone.utc) - timedelta(minutes=1)
+        session.commit()
+
+    credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer",
+        credentials=login_response.session_token,
+    )
+    with pytest.raises(Exception) as error:
+        main.get_current_user(credentials)
+
+    assert error.value.status_code == 401
+
+
+def test_logout_revokes_session(database):
+    main.register(main.RegisterCredentials(
+        nom="Logout",
+        prenom="Secure",
+        pseudo="logout-user",
+        email="logout@example.com",
+        password="secret123",
+    ))
+    login_response = main.login(main.Credentials(
+        login="logout-user",
+        password="secret123",
+    ))
+    credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer",
+        credentials=login_response.session_token,
+    )
+
+    main.logout(credentials)
+
+    with pytest.raises(Exception) as error:
+        main.get_current_user(credentials)
+
+    assert error.value.status_code == 401
+
+
+def test_passwords_are_isolated_between_users(database):
+    first_user = main.register(main.RegisterCredentials(
+        nom="Premier",
+        prenom="Alice",
+        pseudo="first-user",
+        email="first-user@example.com",
+        password="secret123",
+    ))
+    second_user = main.register(main.RegisterCredentials(
+        nom="Second",
+        prenom="Bob",
+        pseudo="second-user",
+        email="second-user@example.com",
+        password="secret123",
+    ))
+
+    with Session(database) as session:
+        stored_first_user = session.get(main.User, first_user.id)
+        stored_second_user = session.get(main.User, second_user.id)
+        main.add_password_entry(main.PasswordEntryCreate(
+            service="First private service",
+            service_categorie="Developpeur",
+            favori=False,
+            mdp="first-secret",
+            mdp_force="Fort",
+        ), stored_first_user)
+        main.add_password_entry(main.PasswordEntryCreate(
+            service="Second private service",
+            service_categorie="Developpeur",
+            favori=False,
+            mdp="second-secret",
+            mdp_force="Fort",
+        ), stored_second_user)
+
+        first_passwords = main.get_passwords(stored_first_user)
+
+        stored_entries = session.scalars(select(main.PasswordEntry)).all()
+        first_stored_entry = next(entry for entry in stored_entries if entry.service == "First private service")
+
+    assert [password.service for password in first_passwords] == ["First private service"]
+    assert first_passwords[0].mdp == "first-secret"
+    assert first_stored_entry.mdp != "first-secret"
+
+
+def test_logout_without_token_does_not_create_authenticated_session(database):
+    main.logout(None)
+
+    with pytest.raises(Exception) as error:
+        main.get_current_user(None)
 
     assert error.value.status_code == 401
