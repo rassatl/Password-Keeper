@@ -5,6 +5,8 @@ import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import re
+import unicodedata
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -77,6 +79,10 @@ class RegisterCredentials(BaseModel):
     pseudo: str = Field(min_length=3, max_length=50)
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=6, max_length=128)
+
+class PasswordCategoryCreate(BaseModel):
+    nom: str = Field(min_length=1, max_length=50)
+    description: str = Field(min_length=1, max_length=255)
 
 class PasswordCategoryResponse(BaseModel):
     id: int
@@ -163,7 +169,6 @@ def create_session(session: Session, user: User) -> str:
     session.commit()
     return raw_token
 
-
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(session_scheme),
 ) -> User:
@@ -183,7 +188,6 @@ def get_current_user(
         if user is None:
             raise HTTPException(status_code=401, detail="Utilisateur introuvable.")
         return user
-
 
 def get_vault_cipher() -> Fernet:
     encryption_key = os.getenv("VAULT_ENCRYPTION_KEY")
@@ -229,6 +233,14 @@ def user_response(user: User) -> UserResponse:
         prenom=user.prenom,
         pseudo=user.pseudo,
     )
+
+def generate_category_id(name: str) -> str:
+    name = unicodedata.normalize("NFKD", name)
+    name = name.encode("ascii", "ignore").decode("ascii")
+    name = name.lower()
+    name = re.sub(r"[^a-z0-9]+", "-", name)
+    name = name.strip("-")
+    return name
 
 @app.get("/api/health")
 def health_check() -> dict[str, str]:
@@ -301,15 +313,6 @@ def get_passwords(user: User = Depends(get_current_user)) -> list[PasswordEntryR
             )
             for entry in entries
         ]
-
-@app.get("/api/categories", response_model=list[PasswordCategoryResponse])
-def get_categories() -> list[PasswordCategoryResponse]:
-    with Session(engine) as session:
-        categories = session.scalars(select(PasswordCategory).order_by(PasswordCategory.nom)).all()
-        return [
-            PasswordCategoryResponse(id=category.id, id_categorie=category.id_categorie, nom=category.nom, description=category.description)
-            for category in categories
-        ]
     
 @app.post("/api/passwords", response_model=PasswordEntryResponse, status_code=status.HTTP_201_CREATED)
 def add_password_entry(
@@ -332,4 +335,77 @@ def add_password_entry(
             favori=password_entry.favori,
             mdp=decrypt_vault_password(password_entry.mdp, user),
             mdp_force=password_entry.mdp_force
+        )
+
+@app.get("/api/categories", response_model=list[PasswordCategoryResponse])
+def get_categories() -> list[PasswordCategoryResponse]:
+    with Session(engine) as session:
+        categories = session.scalars(select(PasswordCategory).order_by(PasswordCategory.nom)).all()
+        return [
+            PasswordCategoryResponse(id=category.id, id_categorie=category.id_categorie, nom=category.nom, description=category.description)
+            for category in categories
+        ]
+    
+@app.post(
+    "/api/categories",
+    response_model=PasswordCategoryResponse,
+    status_code=status.HTTP_201_CREATED
+)
+def add_category(
+    category: PasswordCategoryCreate,
+    user: User = Depends(get_current_user),
+) -> PasswordCategoryResponse:
+
+    nom = category.nom.strip()
+    description = category.description.strip()
+
+    id_categorie = generate_category_id(nom)
+
+    if not id_categorie:
+        raise HTTPException(
+            status_code=400,
+            detail="Le nom de la catégorie ne permet pas de créer un identifiant valide."
+        )
+
+    with Session(engine) as session:
+
+        existing_id = session.scalar(
+            select(PasswordCategory).where(
+                PasswordCategory.id_categorie == id_categorie
+            )
+        )
+
+        if existing_id:
+            raise HTTPException(
+                status_code=409,
+                detail="Une catégorie avec ce nom existe déjà."
+            )
+
+        existing_name = session.scalar(
+            select(PasswordCategory).where(
+                PasswordCategory.nom == nom
+            )
+        )
+
+        if existing_name:
+            raise HTTPException(
+                status_code=409,
+                detail="Une catégorie avec ce nom existe déjà."
+            )
+
+        new_category = PasswordCategory(
+            id_categorie=id_categorie,
+            nom=nom,
+            description=description,
+        )
+
+        session.add(new_category)
+        session.commit()
+        session.refresh(new_category)
+
+        return PasswordCategoryResponse(
+            id=new_category.id,
+            id_categorie=new_category.id_categorie,
+            nom=new_category.nom,
+            description=new_category.description,
         )

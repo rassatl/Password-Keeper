@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { getPasswords, getCategories, addPasswordEntry } from "../../passwordsService.js";
+import { getPasswords, getCategories, addPasswordEntry, addCategory } from "../../passwordsService.js";
 
 const props = defineProps({
   user: {
@@ -37,6 +37,12 @@ async function fetchPasswords() {
 }
 
 // Catégories
+const showAddCategory = ref(false);
+const addCategoryLoading = ref(false);
+const addCategoryError = ref("");
+ 
+const newCategoryName = ref("");
+const newCategoryDescription = ref("");
 const categories = ref([
       { id_categorie: "tout", nom: "Tout les identifiants", description: "Tous vos identifiants enregistrés." },
       { id_categorie: "favoris", nom: "Favoris", description: "Vos identifiants favoris." }
@@ -52,6 +58,38 @@ async function fetchCategories() {
     ];
   } catch (error) {
     console.error("Erreur lors de la récupération des catégories:", error);
+  }
+}
+
+function openAddCategory() {
+  addCategoryError.value = "";
+  newCategoryName.value = "";
+  newCategoryDescription.value = "";
+  showAddCategory.value = true;
+}
+
+function closeAddCategory() {
+  showAddCategory.value = false;
+}
+
+async function createCategory() {
+  addCategoryLoading.value = true;
+  addCategoryError.value = "";
+
+  try {
+    await addCategory({
+      nom: newCategoryName.value.trim(),
+      description: newCategoryDescription.value.trim()
+    });
+
+    await fetchCategories();
+
+    closeAddCategory();
+  } catch (error) {
+    addCategoryError.value =
+      error.message || "Impossible de créer la catégorie.";
+  } finally {
+    addCategoryLoading.value = false;
   }
 }
 
@@ -179,14 +217,7 @@ fetchCategories();
       </div>
       <p class="sidebar-label">Categories</p>
       <nav aria-label="Password categories">
-        <button
-          v-for="category in categories"
-          :key="category.id_categorie"
-          class="category-link"
-          :class="{ active: activeCategory === category.id_categorie }"
-          type="button"
-          @click="selectCategory(category.id_categorie)"
-        >
+        <button v-for="category in categories" :key="category.id_categorie" class="category-link" :class="{ active: activeCategory === category.id_categorie }" type="button" @click="selectCategory(category.id_categorie)">
           {{ category.nom }}
         </button>
       </nav>
@@ -341,7 +372,8 @@ fetchCategories();
                 </option>
             </select>
           </label>
-          
+          <button class="sidebar-add-category" type="button" @click="openAddCategory">Ajouter une catégorie</button>
+
           <label class="favorite-option"><input type="checkbox" name="password-form-favorite" /> Ajouter aux favoris</label>
           
           <footer class="modal-actions">
@@ -351,6 +383,88 @@ fetchCategories();
           </footer>
         </form>
       </section>
+      <div
+        v-if="showAddCategory"
+        class="modal-backdrop"
+        @click.self="closeAddCategory"
+      >
+        <section
+          class="password-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-category-title"
+        >
+          <header class="modal-header">
+            <div>
+              <p class="eyebrow">Nouvelle catégorie</p>
+              <h2 id="add-category-title">Ajouter une catégorie</h2>
+            </div>
+
+            <button
+              class="modal-close"
+              type="button"
+              aria-label="Fermer"
+              @click="closeAddCategory"
+            >
+              &times;
+            </button>
+          </header>
+
+          <form
+            class="password-form"
+            autocomplete="off"
+            @submit.prevent="createCategory"
+          >
+            <label>
+              Nom de la catégorie
+
+              <input
+                v-model="newCategoryName"
+                type="text"
+                placeholder="Ex. Réseaux sociaux"
+                maxlength="50"
+                required
+              />
+            </label>
+
+            <label>
+              Description
+
+              <textarea
+                v-model="newCategoryDescription"
+                placeholder="Ex. Vos comptes de réseaux sociaux."
+                maxlength="255"
+                rows="4"
+                required
+              ></textarea>
+            </label>
+
+            <p
+              v-if="addCategoryError"
+              class="password-feedback error"
+            >
+              {{ addCategoryError }}
+            </p>
+
+            <footer class="modal-actions">
+              <button
+                class="modal-cancel"
+                type="button"
+                @click="closeAddCategory"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="submit"
+                :disabled="addCategoryLoading"
+              >
+                {{ addCategoryLoading ? "Création..." : "Créer la catégorie" }}
+              </button>
+            </footer>
+          </form>
+        </section>
+      </div>
     </div>
   </div>
 </template>

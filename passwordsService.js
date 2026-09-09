@@ -51,3 +51,10 @@ export async function addPasswordEntry(entry) {
 export async function getCategories() {
   return request("/api/categories", { method: "GET" });
 }
+
+export async function addCategory(category) {
+  return request("/api/categories", {
+    method: "POST",
+    body: JSON.stringify(category)
+  });
+}
