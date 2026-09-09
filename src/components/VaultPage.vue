@@ -204,7 +204,9 @@ async function addPassword(event) {
 
   try {
     await addPasswordEntry({
+      identifiant: formData.get("password-form-identifier"),
       service: formData.get("password-form-service"),
+      url_service: formData.get("password-form-url-service"),
       service_categorie: formData.get("password-form-category"),
       favori: formData.get("password-form-favorite") === "on",
       mdp: formData.get("password-form-secret"),
@@ -275,6 +277,7 @@ fetchCategories();
             <div class="password-card-details">
               <strong>{{ password.service || password.name }}</strong>
               <span>{{ password.service_categorie || "Catégorie non renseignée" }}</span>
+              <span>{{ password.identifiant || "Identifiant non renseigné" }}</span>
             </div>
             <div class="password-wrapper password-display">
             <code>{{ isPasswordVisible(password.id) ? (password.mdp || password.value) : '••••••••••' }}</code>
@@ -317,6 +320,7 @@ fetchCategories();
             <div class="password-card-details">
               <strong>{{ password.service || password.name }}</strong>
               <span>{{ password.service_categorie || "Catégorie non renseignée" }}</span>
+              <span>{{ password.identifiant || "Identifiant non renseigné" }}</span>
             </div>
             <div class="password-wrapper password-display">
               <code>{{ isPasswordVisible(password.id) ? (password.mdp || password.value) : '••••••••••' }}</code>
@@ -360,6 +364,10 @@ fetchCategories();
 
         <form class="password-form" autocomplete="off" @submit.prevent="addPassword">
           <label>Service<input name="password-form-service" type="text" autocomplete="off" placeholder="Ex. Netflix, GitHub..." required /></label>
+          
+          <label>URL du service<input name="password-form-url-service" type="url" autocomplete="off" placeholder="Ex. https://www.netflix.com..." required /></label>
+
+          <label>Identifiant (login ou email)<input name="password-form-identifier" type="text" autocomplete="off" placeholder="Ex. JohnDoe ou john.doe@example.com..." required /></label>
           
           <label>Mot de passe
             <input 

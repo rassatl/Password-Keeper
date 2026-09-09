@@ -55,7 +55,9 @@ class PasswordEntry(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     utilisateur_id: Mapped[int] = mapped_column(index=True)
+    identifiant: Mapped[str] = mapped_column(String(100))
     service: Mapped[str] = mapped_column(String(100))
+    url_service: Mapped[str] = mapped_column(String(100))
     service_categorie: Mapped[str] = mapped_column(String(100))
     favori: Mapped[bool] = mapped_column()
     mdp: Mapped[str] = mapped_column(String(255))
@@ -92,14 +94,18 @@ class PasswordCategoryResponse(BaseModel):
 
 class PasswordEntryResponse(BaseModel):
     id: int
+    identifiant: str
     service: str
+    url_service: str
     service_categorie: str
     favori: bool
     mdp: str
     mdp_force: str
 
 class PasswordEntryCreate(BaseModel):
+    identifiant: str = Field(min_length=1, max_length=100)
     service: str = Field(min_length=1, max_length=100)
+    url_service: str = Field(min_length=1, max_length=100)
     service_categorie: str = Field(min_length=1, max_length=100)
     favori: bool
     mdp: str = Field(min_length=1)
@@ -305,6 +311,8 @@ def get_passwords(user: User = Depends(get_current_user)) -> list[PasswordEntryR
         return [
             PasswordEntryResponse(
                 id=entry.id,
+                identifiant=entry.identifiant,
+                url_service=entry.url_service,
                 service=entry.service,
                 service_categorie=entry.service_categorie,
                 favori=entry.favori,
@@ -327,6 +335,8 @@ def add_password_entry(entry: PasswordEntryCreate, user: User = Depends(get_curr
         session.refresh(password_entry)
         return PasswordEntryResponse(
             id=password_entry.id,
+            identifiant=password_entry.identifiant,
+            url_service=password_entry.url_service,
             service=password_entry.service,
             service_categorie=password_entry.service_categorie,
             favori=password_entry.favori,

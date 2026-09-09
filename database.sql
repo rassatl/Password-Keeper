@@ -43,7 +43,9 @@ CREATE TABLE categories (
 CREATE TABLE identifiants (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     utilisateur_id INT NOT NULL,
+    identifiant VARCHAR(100) NOT NULL,
     service VARCHAR(100) NOT NULL,
+    url_service VARCHAR(100) NOT NULL,
     service_categorie VARCHAR(100) NOT NULL,
     favori BOOLEAN NOT NULL,
     mdp TEXT NOT NULL,
