@@ -239,14 +239,18 @@ def test_passwords_are_isolated_between_users(database):
         stored_first_user = session.get(main.User, first_user.id)
         stored_second_user = session.get(main.User, second_user.id)
         main.add_password_entry(main.PasswordEntryCreate(
+            identifiant="first-user",
             service="First private service",
+            url_service="https://first-service.example.com",
             service_categorie="Developpeur",
             favori=False,
             mdp="first-secret",
             mdp_force="Fort",
         ), stored_first_user)
         main.add_password_entry(main.PasswordEntryCreate(
+            identifiant="second-user",
             service="Second private service",
+            url_service="https://second-service.example.com",
             service_categorie="Developpeur",
             favori=False,
             mdp="second-secret",
