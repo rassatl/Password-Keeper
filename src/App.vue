@@ -1,13 +1,19 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue";
-import { clearStoredUser, getStoredUser, loginUser, logoutUser, registerUser } from "../authService.js";
+import { fetchCurrentUser, loginUser, logoutUser, registerUser } from "../authService.js";
+import { lockVault } from "../vaultCrypto.js";
 import VaultPage from "./components/VaultPage.vue";
 
 const status = ref({ message: "", type: "" });
 const loadingAction = ref("");
 const isRegistering = ref(false);
-const currentUser = ref(getStoredUser());
+const currentUser = ref(null);
 const databaseStatus = ref({ label: "Vérification...", type: "checking" });
+
+// Variables pour gérer la visibilité des mots de passe
+const showRegisterPassword = ref(false);
+const showRegisterPasswordConfirm = ref(false);
+const showLoginPassword = ref(false);
 
 async function checkDatabase() {
   databaseStatus.value = { label: "Vérification...", type: "checking" };
@@ -45,12 +51,17 @@ async function handleSubmit(action, successMessage, event) {
         password
       );
       currentUser.value = null;
-      clearStoredUser();
+      isRegistering.value = false;
     } else {
       currentUser.value = await loginUser(formData.get("login"), formData.get("password"));
     }
     status.value = { message: successMessage, type: "success" };
     form.reset();
+    
+    showRegisterPassword.value = false;
+    showRegisterPasswordConfirm.value = false;
+    showLoginPassword.value = false;
+    
   } catch (error) {
     status.value = {
       message: error.message || "Une erreur est survenue.",
@@ -63,13 +74,14 @@ async function handleSubmit(action, successMessage, event) {
 
 function handleSessionExpired() {
   currentUser.value = null;
-  clearStoredUser();
+  lockVault();
   status.value = { message: "Votre session a expiré. Veuillez vous reconnecter.", type: "error" };
   isRegistering.value = false;
 }
 
-onMounted(() => {
+onMounted(async () => {
   checkDatabase();
+  currentUser.value = await fetchCurrentUser();
   window.addEventListener("auth-expired", handleSessionExpired);
 });
 
@@ -78,11 +90,7 @@ onUnmounted(() => {
 });
 
 async function logout() {
-  try {
-    await logoutUser();
-  } catch {
-    clearStoredUser();
-  }
+  await logoutUser();
   currentUser.value = null;
   status.value = { message: "", type: "" };
 }
@@ -90,6 +98,10 @@ async function logout() {
 function switchAuthMode(registering) {
   isRegistering.value = registering;
   status.value = { message: "", type: "" };
+  
+  showRegisterPassword.value = false;
+  showRegisterPasswordConfirm.value = false;
+  showLoginPassword.value = false;
 }
 </script>
 
@@ -127,8 +139,27 @@ function switchAuthMode(registering) {
             <label>Prénom<input name="prenom" type="text" autocomplete="given-name" maxlength="50" required /></label>
             <label>Pseudo<input name="pseudo" type="text" autocomplete="username" minlength="3" maxlength="50" required /></label>
             <label>Adresse e-mail<input name="email" type="email" autocomplete="email" required /></label>
-            <label>Mot de passe<input name="password" type="password" autocomplete="new-password" minlength="12" required /></label>
-            <label>Vérifier le mot de passe<input name="passwordConfirmation" type="password" autocomplete="new-password" minlength="12" required /></label>
+            
+            <label>Mot de passe
+              <div class="password-wrapper">
+                <input name="password" :type="showRegisterPassword ? 'text' : 'password'" autocomplete="new-password" minlength="12" required />
+                <button type="button" class="toggle-password-btn" @click="showRegisterPassword = !showRegisterPassword" :title="showRegisterPassword ? 'Cacher le mot de passe' : 'Afficher le mot de passe'">
+                  <svg v-if="showRegisterPassword" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </label>
+            
+            <label>Vérifier le mot de passe
+              <div class="password-wrapper">
+                <input name="passwordConfirmation" :type="showRegisterPasswordConfirm ? 'text' : 'password'" autocomplete="new-password" minlength="12" required />
+                <button type="button" class="toggle-password-btn" @click="showRegisterPasswordConfirm = !showRegisterPasswordConfirm" :title="showRegisterPasswordConfirm ? 'Cacher le mot de passe' : 'Afficher le mot de passe'">
+                  <svg v-if="showRegisterPasswordConfirm" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </label>
+            
             <button type="submit" :disabled="loadingAction !== ''">S'inscrire</button>
             <button class="auth-switch" type="button" @click="switchAuthMode(false)">Déjà un compte ? Se connecter</button>
           </form>
@@ -136,7 +167,17 @@ function switchAuthMode(registering) {
           <form v-else @submit.prevent="handleSubmit('login', 'Connexion réussie.', $event)">
             <h3>Se connecter</h3>
             <label>Pseudo ou e-mail<input name="login" type="text" autocomplete="username" minlength="3" required /></label>
-            <label>Mot de passe<input name="password" type="password" autocomplete="current-password" minlength="12" required /></label>
+            
+            <label>Mot de passe
+              <div class="password-wrapper">
+                <input name="password" :type="showLoginPassword ? 'text' : 'password'" autocomplete="current-password" minlength="12" required />
+                <button type="button" class="toggle-password-btn" @click="showLoginPassword = !showLoginPassword" :title="showLoginPassword ? 'Cacher le mot de passe' : 'Afficher le mot de passe'">
+                  <svg v-if="showLoginPassword" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </label>
+            
             <button type="submit" :disabled="loadingAction !== ''">Se connecter</button>
             <button class="auth-switch" type="button" @click="switchAuthMode(true)">Pas de compte ? Créer un compte</button>
           </form>

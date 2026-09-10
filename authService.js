@@ -1,4 +1,4 @@
-const currentUserKey = "password-keeper-current-user";
+import { lockVault, unlockVault, createVaultVerifier, checkVaultVerifier } from "./vaultCrypto.js";
 
 export async function registerUser(nom, prenom, pseudo, email, password) {
   return request("/api/auth/register", {
@@ -15,43 +15,70 @@ export async function loginUser(login, password) {
     login: login.trim().toLowerCase(),
     password
   });
-  localStorage.setItem(currentUserKey, JSON.stringify(user));
+  await unlockVault(password, user.kdf_salt);
+  if (user.vault_verifier) {
+    if (!(await checkVaultVerifier(user.vault_verifier))) {
+      lockVault();
+      throw new Error("Mot de passe maître incorrect pour ce coffre.");
+    }
+  } else {
+    user.vault_verifier = await createVaultVerifier();
+    await request("/api/auth/vault-verifier", { verifier: user.vault_verifier });
+  }
   return user;
 }
 
-export function getStoredUser() {
+// Le token de session vit dans un cookie httpOnly géré par le navigateur ;
+// on interroge le serveur pour savoir si une session est toujours active.
+// Ce n'est pas une vraie déconnexion si l'appel échoue au premier chargement,
+// donc on n'utilise pas request() (qui déclenche l'évènement "session expirée").
+export async function fetchCurrentUser() {
+  const apiBaseUrl = import.meta.env.DEV ? "" : (import.meta.env.VITE_API_URL || "");
   try {
-    const user = JSON.parse(localStorage.getItem(currentUserKey) || "null");
-    return user?.session_token ? user : null;
+    const response = await fetch(`${apiBaseUrl}/api/auth/me`, { credentials: "include" });
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
   } catch {
-    localStorage.removeItem(currentUserKey);
     return null;
   }
 }
 
-export function clearStoredUser() {
-  localStorage.removeItem(currentUserKey);
+export async function unlockVaultWithPassword(password, kdfSalt, vaultVerifier) {
+  await unlockVault(password, kdfSalt);
+  if (vaultVerifier) {
+    if (!(await checkVaultVerifier(vaultVerifier))) {
+      lockVault();
+      throw new Error("Mot de passe maître incorrect.");
+    }
+  } else {
+    const verifier = await createVaultVerifier();
+    await request("/api/auth/vault-verifier", { verifier });
+  }
 }
 
 export function notifySessionExpired() {
-  clearStoredUser();
+  lockVault();
   window.dispatchEvent(new CustomEvent("auth-expired"));
 }
 
 export async function logoutUser() {
-  await request("/api/auth/logout", undefined);
-  clearStoredUser();
+  try {
+    await request("/api/auth/logout", undefined);
+  } finally {
+    lockVault();
+  }
 }
 
 async function request(path, body, options = {}) {
   const apiBaseUrl = import.meta.env.DEV ? "" : (import.meta.env.VITE_API_URL || "");
-  const storedUser = getStoredUser();
   const requestOptions = {
     method: "POST",
+    credentials: "include",
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(storedUser?.session_token ? { Authorization: `Bearer ${storedUser.session_token}` } : {}),
       ...(options.headers || {})
     }
   };
@@ -67,7 +94,7 @@ async function request(path, body, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    if (response.status === 401 && getStoredUser()?.session_token) {
+    if (response.status === 401) {
       notifySessionExpired();
     }
     throw new Error(data.detail || "Le serveur est indisponible.");

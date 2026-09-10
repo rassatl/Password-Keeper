@@ -8,11 +8,9 @@ from pathlib import Path
 import re
 import unicodedata
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from dotenv import load_dotenv
-from cryptography.fernet import Fernet, InvalidToken
 from pydantic import BaseModel, Field
 from sqlalchemy import DateTime, String, create_engine, delete, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -38,8 +36,9 @@ class User(Base):
     nom: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     prenom: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     pseudo: Mapped[str | None] = mapped_column(String(50), unique=True, index=True, nullable=True)
-    vault_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    kdf_salt: Mapped[str] = mapped_column(String(32), nullable=False)
     password_hash: Mapped[str] = mapped_column("masterpassword", String(255))
+    vault_verifier: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class UserSession(Base):
@@ -55,7 +54,9 @@ class PasswordEntry(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     utilisateur_id: Mapped[int] = mapped_column(index=True)
+    identifiant: Mapped[str] = mapped_column(String(100))
     service: Mapped[str] = mapped_column(String(100))
+    url_service: Mapped[str] = mapped_column(String(100))
     service_categorie: Mapped[str] = mapped_column(String(100))
     favori: Mapped[bool] = mapped_column()
     mdp: Mapped[str] = mapped_column(String(255))
@@ -80,6 +81,9 @@ class RegisterCredentials(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=6, max_length=128)
 
+class VaultVerifierUpdate(BaseModel):
+    verifier: str = Field(min_length=1, max_length=255)
+
 class PasswordCategoryCreate(BaseModel):
     nom: str = Field(min_length=1, max_length=50)
     description: str = Field(min_length=1, max_length=255)
@@ -92,14 +96,18 @@ class PasswordCategoryResponse(BaseModel):
 
 class PasswordEntryResponse(BaseModel):
     id: int
+    identifiant: str
     service: str
+    url_service: str
     service_categorie: str
     favori: bool
     mdp: str
     mdp_force: str
 
 class PasswordEntryCreate(BaseModel):
+    identifiant: str = Field(min_length=1, max_length=100)
     service: str = Field(min_length=1, max_length=100)
+    url_service: str = Field(min_length=1, max_length=100)
     service_categorie: str = Field(min_length=1, max_length=100)
     favori: bool
     mdp: str = Field(min_length=1)
@@ -112,10 +120,8 @@ class UserResponse(BaseModel):
     nom: str
     prenom: str
     pseudo: str | None
-
-
-class LoginResponse(UserResponse):
-    session_token: str
+    kdf_salt: str
+    vault_verifier: str | None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -126,13 +132,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Password Keeper API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["https://localhost:5173", "https://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-session_scheme = HTTPBearer(auto_error=False)
+SESSION_COOKIE_NAME = "session_token"
 session_duration = timedelta(minutes=30)
 
 def normalize_email(email: str) -> str:
@@ -169,15 +175,14 @@ def create_session(session: Session, user: User) -> str:
     session.commit()
     return raw_token
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(session_scheme),
-) -> User:
-    if credentials is None or credentials.scheme.lower() != "bearer":
+def get_current_user(request: Request) -> User:
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
         raise HTTPException(status_code=401, detail="Authentification requise.")
 
     with Session(engine) as session:
         stored_session = session.scalar(
-            select(UserSession).where(UserSession.token_hash == hash_session_token(credentials.credentials))
+            select(UserSession).where(UserSession.token_hash == hash_session_token(token))
         )
         date_expiration = stored_session.date_expiration if stored_session else None
         if date_expiration is not None and date_expiration.tzinfo is None:
@@ -189,40 +194,16 @@ def get_current_user(
             raise HTTPException(status_code=401, detail="Utilisateur introuvable.")
         return user
 
-def get_vault_cipher() -> Fernet:
-    encryption_key = os.getenv("VAULT_ENCRYPTION_KEY")
-    if not encryption_key:
-        raise HTTPException(status_code=503, detail="VAULT_ENCRYPTION_KEY n'est pas configurée.")
-    try:
-        return Fernet(encryption_key.encode())
-    except ValueError as error:
-        raise HTTPException(status_code=500, detail="VAULT_ENCRYPTION_KEY est invalide.") from error
-
-
-def create_user_vault_key() -> str:
-    user_key = Fernet.generate_key()
-    return get_vault_cipher().encrypt(user_key).decode()
-
-
-def get_user_vault_cipher(user: User) -> Fernet:
-    try:
-        user_key = get_vault_cipher().decrypt(user.vault_key.encode())
-        return Fernet(user_key)
-    except InvalidToken as error:
-        raise HTTPException(status_code=500, detail="Impossible de déchiffrer la clé du coffre.") from error
-
-
-def encrypt_vault_password(password: str, user: User) -> str:
-    return get_user_vault_cipher(user).encrypt(password.encode()).decode()
-
-
-def decrypt_vault_password(password: str, user: User) -> str:
-    if not password.startswith("gAAAA"):
-        return password
-    try:
-        return get_user_vault_cipher(user).decrypt(password.encode()).decode()
-    except InvalidToken as error:
-        raise HTTPException(status_code=500, detail="Impossible de déchiffrer ce mot de passe.") from error
+def set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=int(session_duration.total_seconds()),
+        path="/",
+    )
 
 def user_response(user: User) -> UserResponse:
     return UserResponse(
@@ -232,6 +213,8 @@ def user_response(user: User) -> UserResponse:
         nom=user.nom,
         prenom=user.prenom,
         pseudo=user.pseudo,
+        kdf_salt=user.kdf_salt,
+        vault_verifier=user.vault_verifier,
     )
 
 def generate_category_id(name: str) -> str:
@@ -265,7 +248,7 @@ def register(credentials: RegisterCredentials) -> UserResponse:
             prenom=prenom,
             pseudo=pseudo,
             email=email,
-            vault_key=create_user_vault_key(),
+            kdf_salt=secrets.token_hex(16),
             password_hash=hash_password(credentials.password),
         )
         session.add(user)
@@ -273,25 +256,45 @@ def register(credentials: RegisterCredentials) -> UserResponse:
         session.refresh(user)
         return user_response(user)
 
-@app.post("/api/auth/login", response_model=LoginResponse)
-def login(credentials: Credentials) -> LoginResponse:
+@app.post("/api/auth/login", response_model=UserResponse)
+def login(credentials: Credentials, response: Response) -> UserResponse:
     identifier = credentials.login.strip().lower()
     with Session(engine) as session:
         user = session.scalar(select(User).where((User.pseudo == identifier) | (User.email == identifier)))
         if user is None or not verify_password(credentials.password, user.password_hash):
             raise HTTPException(status_code=401, detail="Adresse e-mail ou mot de passe incorrect.")
         session_token = create_session(session, user)
-        return LoginResponse(**user_response(user).model_dump(), session_token=session_token)
+        set_session_cookie(response, session_token)
+        return user_response(user)
+
+
+@app.get("/api/auth/me", response_model=UserResponse)
+def me(user: User = Depends(get_current_user)) -> UserResponse:
+    return user_response(user)
+
+
+@app.post("/api/auth/vault-verifier", response_model=UserResponse)
+def set_vault_verifier(payload: VaultVerifierUpdate, user: User = Depends(get_current_user)) -> UserResponse:
+    with Session(engine) as session:
+        db_user = session.get(User, user.id)
+        if db_user.vault_verifier:
+            raise HTTPException(status_code=409, detail="Le vérificateur du coffre est déjà défini.")
+        db_user.vault_verifier = payload.verifier
+        session.commit()
+        session.refresh(db_user)
+        return user_response(db_user)
 
 
 @app.post("/api/auth/logout")
-def logout(credentials: HTTPAuthorizationCredentials | None = Depends(session_scheme)) -> dict[str, str]:
-    if credentials is not None and credentials.scheme.lower() == "bearer":
+def logout(request: Request, response: Response) -> dict[str, str]:
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if token:
         with Session(engine) as session:
             session.execute(delete(UserSession).where(
-                UserSession.token_hash == hash_session_token(credentials.credentials)
+                UserSession.token_hash == hash_session_token(token)
             ))
             session.commit()
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
     return {"status": "ok"}
 
 @app.get("/api/passwords")
@@ -305,40 +308,61 @@ def get_passwords(user: User = Depends(get_current_user)) -> list[PasswordEntryR
         return [
             PasswordEntryResponse(
                 id=entry.id,
+                identifiant=entry.identifiant,
+                url_service=entry.url_service,
                 service=entry.service,
                 service_categorie=entry.service_categorie,
                 favori=entry.favori,
-                mdp=decrypt_vault_password(entry.mdp, user),
+                mdp=entry.mdp,
                 mdp_force=entry.mdp_force
             )
             for entry in entries
         ]
-    
+
 @app.post("/api/passwords", response_model=PasswordEntryResponse, status_code=status.HTTP_201_CREATED)
-def add_password_entry(
-    entry: PasswordEntryCreate,
-    user: User = Depends(get_current_user),
-) -> PasswordEntryResponse:
+def add_password_entry(entry: PasswordEntryCreate, user: User = Depends(get_current_user)) -> PasswordEntryResponse:
     with Session(engine) as session:
         password_entry = PasswordEntry(
             **entry.model_dump(),
             utilisateur_id=user.id,
         )
-        password_entry.mdp = encrypt_vault_password(entry.mdp, user)
         session.add(password_entry)
         session.commit()
         session.refresh(password_entry)
         return PasswordEntryResponse(
             id=password_entry.id,
+            identifiant=password_entry.identifiant,
+            url_service=password_entry.url_service,
             service=password_entry.service,
             service_categorie=password_entry.service_categorie,
             favori=password_entry.favori,
-            mdp=decrypt_vault_password(password_entry.mdp, user),
+            mdp=password_entry.mdp,
+            mdp_force=password_entry.mdp_force
+        )
+
+@app.put("/api/passwords/{entry_id}", response_model=PasswordEntryResponse)
+def update_password_entry(entry_id: int, entry: PasswordEntryCreate, user: User = Depends(get_current_user)) -> PasswordEntryResponse:
+    with Session(engine) as session:
+        password_entry = session.get(PasswordEntry, entry_id)
+        if password_entry is None or password_entry.utilisateur_id != user.id:
+            raise HTTPException(status_code=404, detail="Identifiant introuvable.")
+        for field, value in entry.model_dump().items():
+            setattr(password_entry, field, value)
+        session.commit()
+        session.refresh(password_entry)
+        return PasswordEntryResponse(
+            id=password_entry.id,
+            identifiant=password_entry.identifiant,
+            url_service=password_entry.url_service,
+            service=password_entry.service,
+            service_categorie=password_entry.service_categorie,
+            favori=password_entry.favori,
+            mdp=password_entry.mdp,
             mdp_force=password_entry.mdp_force
         )
 
 @app.get("/api/categories", response_model=list[PasswordCategoryResponse])
-def get_categories() -> list[PasswordCategoryResponse]:
+def get_categories(user: User = Depends(get_current_user)) -> list[PasswordCategoryResponse]:
     with Session(engine) as session:
         categories = session.scalars(select(PasswordCategory).order_by(PasswordCategory.nom)).all()
         return [
@@ -346,19 +370,10 @@ def get_categories() -> list[PasswordCategoryResponse]:
             for category in categories
         ]
     
-@app.post(
-    "/api/categories",
-    response_model=PasswordCategoryResponse,
-    status_code=status.HTTP_201_CREATED
-)
-def add_category(
-    category: PasswordCategoryCreate,
-    user: User = Depends(get_current_user),
-) -> PasswordCategoryResponse:
-
+@app.post("/api/categories", response_model=PasswordCategoryResponse, status_code=status.HTTP_201_CREATED)
+def add_category(category: PasswordCategoryCreate, user: User = Depends(get_current_user)) -> PasswordCategoryResponse:
     nom = category.nom.strip()
     description = category.description.strip()
-
     id_categorie = generate_category_id(nom)
 
     if not id_categorie:

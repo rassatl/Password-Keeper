@@ -1,3 +1,17 @@
+-- Database: password_keeper
+
+-- DROP DATABASE IF EXISTS "password_keeper";
+
+-- CREATE DATABASE "password_keeper"
+--     WITH
+--     OWNER = postgres
+--     ENCODING = 'UTF8'
+--     LC_COLLATE = 'French_France.1252'
+--     LC_CTYPE = 'French_France.1252'
+--     LOCALE_PROVIDER = 'libc'
+--     TABLESPACE = pg_default
+--     CONNECTION LIMIT = -1
+--     IS_TEMPLATE = False;
 
 -- Nettoyage
 DROP TABLE IF EXISTS sessions CASCADE;
@@ -14,8 +28,9 @@ CREATE TABLE utilisateurs (
     prenom VARCHAR(50) UNIQUE NOT NULL,
     pseudo VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    vault_key VARCHAR(255) NOT NULL,
-    masterpassword VARCHAR(255) NOT NULL
+    kdf_salt VARCHAR(32) NOT NULL,
+    masterpassword VARCHAR(255) NOT NULL,
+    vault_verifier VARCHAR(255)
 );
 
 -- Création de la table sessions
@@ -43,7 +58,9 @@ CREATE TABLE categories (
 CREATE TABLE identifiants (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     utilisateur_id INT NOT NULL,
+    identifiant VARCHAR(100) NOT NULL,
     service VARCHAR(100) NOT NULL,
+    url_service VARCHAR(100) NOT NULL,
     service_categorie VARCHAR(100) NOT NULL,
     favori BOOLEAN NOT NULL,
     mdp TEXT NOT NULL,
