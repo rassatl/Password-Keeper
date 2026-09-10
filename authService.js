@@ -1,4 +1,4 @@
-import { lockVault, unlockVault } from "./vaultCrypto.js";
+import { lockVault, unlockVault, createVaultVerifier, checkVaultVerifier } from "./vaultCrypto.js";
 
 export async function registerUser(nom, prenom, pseudo, email, password) {
   return request("/api/auth/register", {
@@ -16,6 +16,15 @@ export async function loginUser(login, password) {
     password
   });
   await unlockVault(password, user.kdf_salt);
+  if (user.vault_verifier) {
+    if (!(await checkVaultVerifier(user.vault_verifier))) {
+      lockVault();
+      throw new Error("Mot de passe maître incorrect pour ce coffre.");
+    }
+  } else {
+    user.vault_verifier = await createVaultVerifier();
+    await request("/api/auth/vault-verifier", { verifier: user.vault_verifier });
+  }
   return user;
 }
 
@@ -36,8 +45,17 @@ export async function fetchCurrentUser() {
   }
 }
 
-export async function unlockVaultWithPassword(password, kdfSalt) {
+export async function unlockVaultWithPassword(password, kdfSalt, vaultVerifier) {
   await unlockVault(password, kdfSalt);
+  if (vaultVerifier) {
+    if (!(await checkVaultVerifier(vaultVerifier))) {
+      lockVault();
+      throw new Error("Mot de passe maître incorrect.");
+    }
+  } else {
+    const verifier = await createVaultVerifier();
+    await request("/api/auth/vault-verifier", { verifier });
+  }
 }
 
 export function notifySessionExpired() {

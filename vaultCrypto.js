@@ -89,3 +89,22 @@ export async function decryptSecret(blob) {
   const plainBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, vaultKey, cipherBytes);
   return new TextDecoder().decode(plainBuffer);
 }
+
+// "Vérificateur" du coffre : un texte connu chiffré avec la clé dérivée du mot
+// de passe maître, stocké côté serveur. Comme deriveKeyFromPassword() dérive
+// toujours une clé (quel que soit le mot de passe fourni), c'est la seule
+// façon de détecter un mot de passe maître incorrect au déverrouillage :
+// AES-GCM échoue à déchiffrer si la clé ne correspond pas.
+const VAULT_VERIFIER_PLAINTEXT = "vault-unlock-check-v1";
+
+export async function createVaultVerifier() {
+  return encryptSecret(VAULT_VERIFIER_PLAINTEXT);
+}
+
+export async function checkVaultVerifier(verifierBlob) {
+  try {
+    return (await decryptSecret(verifierBlob)) === VAULT_VERIFIER_PLAINTEXT;
+  } catch {
+    return false;
+  }
+}

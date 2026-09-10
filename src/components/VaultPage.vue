@@ -25,7 +25,7 @@ async function unlockVaultForm(event) {
   unlockLoading.value = true;
   unlockError.value = "";
   try {
-    await unlockVaultWithPassword(formData.get("unlock-password"), props.user.kdf_salt);
+    await unlockVaultWithPassword(formData.get("unlock-password"), props.user.kdf_salt, props.user.vault_verifier);
     vaultLocked.value = false;
     showUnlockPassword.value = false;
     await fetchPasswords();
@@ -356,7 +356,7 @@ fetchCategories();
         <h2>Déverrouillez votre coffre</h2>
         <p>Vos mots de passe sont chiffrés avec une clé dérivée de votre mot de passe maître, qui n'est jamais
           envoyée au serveur. Ressaisissez-le pour déchiffrer vos identifiants sur cet appareil.</p>
-        <form class="password-form" style="max-width: 320px" autocomplete="off" @submit.prevent="unlockVaultForm">
+        <form class="password-form" style="max-width: 320px; margin: 0 auto" autocomplete="off" @submit.prevent="unlockVaultForm">
           <label>Mot de passe maître
             <div class="password-wrapper">
               <input name="unlock-password" :type="showUnlockPassword ? 'text' : 'password'"

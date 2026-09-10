@@ -38,6 +38,7 @@ class User(Base):
     pseudo: Mapped[str | None] = mapped_column(String(50), unique=True, index=True, nullable=True)
     kdf_salt: Mapped[str] = mapped_column(String(32), nullable=False)
     password_hash: Mapped[str] = mapped_column("masterpassword", String(255))
+    vault_verifier: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class UserSession(Base):
@@ -80,6 +81,9 @@ class RegisterCredentials(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=6, max_length=128)
 
+class VaultVerifierUpdate(BaseModel):
+    verifier: str = Field(min_length=1, max_length=255)
+
 class PasswordCategoryCreate(BaseModel):
     nom: str = Field(min_length=1, max_length=50)
     description: str = Field(min_length=1, max_length=255)
@@ -117,6 +121,7 @@ class UserResponse(BaseModel):
     prenom: str
     pseudo: str | None
     kdf_salt: str
+    vault_verifier: str | None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -209,6 +214,7 @@ def user_response(user: User) -> UserResponse:
         prenom=user.prenom,
         pseudo=user.pseudo,
         kdf_salt=user.kdf_salt,
+        vault_verifier=user.vault_verifier,
     )
 
 def generate_category_id(name: str) -> str:
@@ -265,6 +271,18 @@ def login(credentials: Credentials, response: Response) -> UserResponse:
 @app.get("/api/auth/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)) -> UserResponse:
     return user_response(user)
+
+
+@app.post("/api/auth/vault-verifier", response_model=UserResponse)
+def set_vault_verifier(payload: VaultVerifierUpdate, user: User = Depends(get_current_user)) -> UserResponse:
+    with Session(engine) as session:
+        db_user = session.get(User, user.id)
+        if db_user.vault_verifier:
+            raise HTTPException(status_code=409, detail="Le vérificateur du coffre est déjà défini.")
+        db_user.vault_verifier = payload.verifier
+        session.commit()
+        session.refresh(db_user)
+        return user_response(db_user)
 
 
 @app.post("/api/auth/logout")
