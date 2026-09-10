@@ -59,6 +59,31 @@ Les tests se trouvent dans `backend/tests/test_main.py` :
 | `test_passwords_are_isolated_between_users` | Les mots de passe d'un utilisateur ne sont pas visibles par un autre, et le blob chiffré est stocké tel quel côté serveur |
 | `test_logout_without_token_does_not_create_authenticated_session` | Se déconnecter sans être connecté ne crée pas de session authentifiée |
 
+## Lancement avec Docker (Partie généré avec IA, fonctionnelle => je l'ai testé)
+
+Le projet peut aussi être lancé entièrement avec Docker (base de données PostgreSQL, API FastAPI et frontend Vue) via `docker-compose.yml` :
+
+```bash
+cp .env.example .env   # si vous n'avez pas encore de .env
+docker compose up --build
+```
+
+Cela démarre 3 services :
+
+| Service | Rôle | Accès |
+|---------|------|-------|
+| `db` | PostgreSQL, initialisé avec `database.sql` (schéma + catégories par défaut) | `localhost:5432` |
+| `backend` | API FastAPI (uvicorn) | joignable uniquement depuis le réseau Docker interne (`backend:8000`) |
+| `web` | Build de prod du frontend Vue servi par nginx, qui fait aussi reverse proxy `/api` vers `backend` | `https://localhost:8443` |
+
+Ouvrir **https://localhost:8443** dans le navigateur (certificat auto-signé généré au build de l'image, comme en dev avec `@vitejs/plugin-basic-ssl` : le navigateur affichera un avertissement à accepter). Le frontend et l'API étant servis sous la même origine, les cookies de session `Secure`/`HttpOnly` fonctionnent sans configuration CORS supplémentaire.
+
+Les données PostgreSQL sont persistées dans le volume Docker `pgdata`. Pour repartir d'une base vide :
+
+```bash
+docker compose down -v
+```
+
 ## CI/CD GitHub Actions
 
 Le workflow `.github/workflows/ci.yml` s'exécute sur chaque push et pull request vers `main` ou `dev_cdc_serigne`.
